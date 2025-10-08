@@ -2,10 +2,19 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\EpisodeController;
+use App\Http\Controllers\EmbedController;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome');
-})->name('home');
+// Home page - Episode listing
+Route::get('/', [EpisodeController::class, 'index'])->name('home');
+
+// Embed routes
+Route::get('/embed/{id}', [EmbedController::class, 'show'])->name('embed.show');
+Route::get('/api/embed/{id}/code', [EmbedController::class, 'generateEmbedCode'])->name('embed.code');
+
+// API routes for episodes
+Route::get('/api/episodes', [EpisodeController::class, 'apiIndex'])->name('api.episodes');
+Route::get('/api/episodes/{id}', [EpisodeController::class, 'show'])->name('api.episodes.show');
 
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
