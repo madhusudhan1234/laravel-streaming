@@ -70,10 +70,10 @@
           <div 
             v-for="(bar, index) in waveformBars" 
             :key="index"
-            class="waveform-bar bg-gray-300 rounded-t-sm transition-all duration-300 ease-out relative overflow-hidden hover:bg-gray-400"
+            class="waveform-bar bg-gray-400 rounded-t-sm transition-all duration-300 ease-out relative overflow-hidden hover:bg-gray-500"
             :style="{ 
               height: `${bar.height}%`, 
-              minHeight: '6px',
+              minHeight: '8px',
               width: `${barWidth}px`
             }"
           >
@@ -142,7 +142,7 @@
     <div class="volume-section flex items-center space-x-3 mb-6">
       <button @click="mute" class="volume-icon text-gray-600 hover:text-gray-800 transition-colors">
         <svg v-if="audioState.volume === 0" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+          <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 = 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
         </svg>
         <svg v-else-if="audioState.volume < 50" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
           <path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/>
@@ -265,11 +265,11 @@ const barWidth = computed(() => {
 const waveformBars = computed(() => {
   const bars = []
   for (let i = 0; i < totalBars; i++) {
-    // Create a more realistic waveform pattern
-    const baseHeight = 25 + Math.sin(i * 0.08) * 20
-    const variation = Math.sin(i * 0.25) * 25 + Math.cos(i * 0.15) * 20
-    const randomness = (Math.random() - 0.5) * 35
-    const height = Math.max(15, Math.min(100, baseHeight + variation + randomness))
+    // Create a more realistic waveform pattern similar to SoundCloud
+    const baseHeight = 30 + Math.sin(i * 0.1) * 25
+    const variation = Math.sin(i * 0.3) * 30 + Math.cos(i * 0.2) * 25
+    const randomness = (Math.random() - 0.5) * 40
+    const height = Math.max(20, Math.min(100, baseHeight + variation + randomness))
     
     bars.push({ height })
   }
