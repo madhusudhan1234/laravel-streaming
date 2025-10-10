@@ -79,15 +79,15 @@ jobs:
           chmod -R 755 storage bootstrap/cache
           chmod -R 777 storage
 
+      - name: Run Database Migrations
+        run: php artisan migrate --force
+
       - name: Clear Laravel Caches
         run: |
           php artisan config:clear
           php artisan cache:clear
           php artisan view:clear
           php artisan route:clear
-
-      - name: Run Database Migrations
-        run: php artisan migrate --force
 
       - name: Build Assets
         run: npm run build
