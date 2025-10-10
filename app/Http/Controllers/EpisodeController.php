@@ -25,8 +25,8 @@ class EpisodeController extends Controller
     public function getEpisodes()
     {
         try {
-            // Use file_get_contents with storage_path instead of Storage facade
-            $episodesJson = file_get_contents(storage_path('app/episodes.json'));
+            // Use database_path for version-controlled episodes data
+            $episodesJson = file_get_contents(database_path('data/episodes.json'));
 
             if ($episodesJson === false) {
                 return [];

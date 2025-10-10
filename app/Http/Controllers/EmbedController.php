@@ -47,7 +47,7 @@ class EmbedController extends Controller
     private function getEpisode($id)
     {
         try {
-            $episodesPath = storage_path('app/episodes.json');
+            $episodesPath = database_path('data/episodes.json');
 
             if (! file_exists($episodesPath)) {
                 return null;
