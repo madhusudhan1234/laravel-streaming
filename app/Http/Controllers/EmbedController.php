@@ -71,7 +71,7 @@ class EmbedController extends Controller
         $title = htmlspecialchars($episode['title']);
 
         return sprintf(
-            '<iframe src="%s" width="100%" height="120" frameborder="0" title="%s" allow="autoplay"></iframe>',
+            '<iframe src="%s" width="100%%" height="120" frameborder="0" title="%s" allow="autoplay"></iframe>',
             $embedUrl,
             $title
         );
