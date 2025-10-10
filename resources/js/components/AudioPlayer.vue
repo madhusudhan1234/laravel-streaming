@@ -213,7 +213,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import { useAudioPlayer, type Episode } from '@/composables/useAudioPlayer'
+import { useAudioStreaming, type Episode } from '@/composables/useAudioStreaming'
 
 interface Props {
   episode?: Episode | null
@@ -231,7 +231,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-// Audio player composable
+// Audio streaming composable
 const {
   audioState,
   progress,
@@ -242,7 +242,7 @@ const {
   seekToPercentage,
   setVolume,
   mute
-} = useAudioPlayer()
+} = useAudioStreaming()
 
 // Embed modal state
 const showEmbedModal = ref(false)

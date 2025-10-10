@@ -118,7 +118,7 @@
 
     <div class="time" id="time">0:00 / 0:00</div>
 
-    <audio id="audio" src="{{ $episode['url'] }}" preload="metadata"></audio>
+    <audio id="audio" preload="metadata"></audio>
   </div>
 
 <script>
@@ -127,6 +127,10 @@
   const playButton = document.getElementById('playButton');
   const timeDisplay = document.getElementById('time');
   const waveform = document.getElementById('waveform');
+  
+  // Initialize streaming URL
+  let streamingUrl = null;
+  let isStreamingSupported = false;
 
   // Generate waveform bars
   const totalBars = 120;
@@ -172,11 +176,46 @@
     }
   });
 
+  // Initialize streaming
+  async function initializeStreaming() {
+    try {
+      const response = await fetch(`/api/episodes/{{ $episode['id'] }}/stream`);
+      const data = await response.json();
+      
+      if (data.stream_url) {
+        streamingUrl = data.stream_url;
+        isStreamingSupported = data.supports_range || false;
+        audio.src = streamingUrl;
+      } else {
+        // Fallback to direct URL
+        audio.src = '{{ $episode['url'] }}';
+      }
+    } catch (error) {
+      console.warn('Streaming not available, using direct URL:', error);
+      audio.src = '{{ $episode['url'] }}';
+    }
+  }
+
+  // Enhanced waveform click for seeking
+  waveform.addEventListener('click', (e) => {
+    if (!audio.duration) return;
+    
+    const rect = waveform.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const percentage = clickX / rect.width;
+    const seekTime = percentage * audio.duration;
+    
+    audio.currentTime = seekTime;
+  });
+
   audio.addEventListener('timeupdate', updateWaveform);
   audio.addEventListener('loadedmetadata', updateTime);
   audio.addEventListener('ended', () => {
     player.classList.remove('playing');
   });
+
+  // Initialize streaming on load
+  initializeStreaming();
 </script>
 </body>
 </html>
