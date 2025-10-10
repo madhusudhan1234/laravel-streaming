@@ -8,7 +8,7 @@ export interface Episode {
     file_size: string;
     format: string;
     published_date: string;
-    description: string;
+    description?: string;
     url: string;
 }
 
@@ -20,9 +20,10 @@ export interface AudioState {
     isLoading: boolean;
     error: string | null;
     buffered: number;
+    canSeek: boolean;
 }
 
-export function useAudioPlayer(episode?: Episode) {
+export function useAudioStreaming(episode?: Episode) {
     const audioElement = ref<HTMLAudioElement | null>(null);
 
     const audioState = reactive<AudioState>({
@@ -33,6 +34,7 @@ export function useAudioPlayer(episode?: Episode) {
         isLoading: false,
         error: null,
         buffered: 0,
+        canSeek: false,
     });
 
     // Computed properties
@@ -46,24 +48,63 @@ export function useAudioPlayer(episode?: Episode) {
     );
     const formattedDuration = computed(() => formatTime(audioState.duration));
 
-    // Initialize audio element
-    const initAudio = (episodeData: Episode) => {
+    // Get streaming URL for episode
+    const getStreamingUrl = async (episodeData: Episode): Promise<string> => {
+        try {
+            const response = await fetch(
+                `/api/episodes/${episodeData.id}/stream`,
+            );
+            const data = await response.json();
+
+            if (data.stream_url) {
+                return data.stream_url;
+            }
+
+            // Fallback to direct URL if streaming not available
+            return episodeData.url;
+        } catch (error) {
+            console.warn(
+                'Failed to get streaming URL, using direct URL:',
+                error,
+            );
+            return episodeData.url;
+        }
+    };
+
+    // Initialize audio element with streaming support
+    const initAudio = async (episodeData: Episode) => {
         if (audioElement.value) {
             audioElement.value.pause();
             audioElement.value.src = '';
         }
 
-        audioElement.value = new Audio(episodeData.url);
+        audioState.isLoading = true;
+        audioState.error = null;
 
-        // Configure for progressive streaming like SoundCloud
-        audioElement.value.preload = 'none'; // Only load when user clicks play
-        audioElement.value.crossOrigin = 'anonymous';
+        try {
+            // Get streaming URL
+            const streamUrl = await getStreamingUrl(episodeData);
 
-        setupAudioListeners();
-        audioElement.value.volume = audioState.volume / 100;
+            audioElement.value = new Audio();
+
+            // Configure for progressive streaming
+            audioElement.value.preload = 'metadata'; // Load metadata for duration info
+            audioElement.value.crossOrigin = 'anonymous';
+
+            // Set up event listeners before setting src
+            setupAudioListeners();
+
+            // Set the streaming URL
+            audioElement.value.src = streamUrl;
+            audioElement.value.volume = audioState.volume / 100;
+        } catch (error) {
+            audioState.error = 'Failed to initialize audio streaming';
+            audioState.isLoading = false;
+            console.error('Audio initialization error:', error);
+        }
     };
 
-    // Setup event listeners
+    // Setup event listeners with streaming optimizations
     const setupAudioListeners = () => {
         if (!audioElement.value) return;
 
@@ -74,6 +115,7 @@ export function useAudioPlayer(episode?: Episode) {
 
         audioElement.value.addEventListener('loadedmetadata', () => {
             audioState.duration = audioElement.value?.duration || 0;
+            audioState.canSeek = true;
             audioState.isLoading = false;
         });
 
@@ -90,6 +132,15 @@ export function useAudioPlayer(episode?: Episode) {
             }
         });
 
+        audioElement.value.addEventListener('canplay', () => {
+            audioState.isLoading = false;
+            audioState.canSeek = true;
+        });
+
+        audioElement.value.addEventListener('canplaythrough', () => {
+            audioState.isLoading = false;
+        });
+
         audioElement.value.addEventListener('play', () => {
             audioState.isPlaying = true;
         });
@@ -103,29 +154,44 @@ export function useAudioPlayer(episode?: Episode) {
             audioState.currentTime = 0;
         });
 
-        audioElement.value.addEventListener('error', () => {
-            audioState.error = 'Failed to load audio file';
+        audioElement.value.addEventListener('error', (e) => {
+            audioState.error = 'Failed to load or stream audio file';
             audioState.isLoading = false;
             audioState.isPlaying = false;
+            console.error('Audio streaming error:', e);
         });
 
         audioElement.value.addEventListener('waiting', () => {
             audioState.isLoading = true;
         });
 
-        audioElement.value.addEventListener('canplay', () => {
+        audioElement.value.addEventListener('seeking', () => {
+            audioState.isLoading = true;
+        });
+
+        audioElement.value.addEventListener('seeked', () => {
             audioState.isLoading = false;
+        });
+
+        // Handle network state changes for streaming
+        audioElement.value.addEventListener('stalled', () => {
+            console.log('Audio streaming stalled');
+        });
+
+        audioElement.value.addEventListener('suspend', () => {
+            console.log('Audio streaming suspended');
         });
     };
 
-    // Audio control methods
+    // Audio control methods optimized for streaming
     const play = async () => {
         if (!audioElement.value) return;
 
         try {
+            // For streaming, we can start playing immediately
             await audioElement.value.play();
         } catch (error) {
-            audioState.error = 'Failed to play audio';
+            audioState.error = 'Failed to play audio stream';
             console.error('Audio play error:', error);
         }
     };
@@ -143,13 +209,23 @@ export function useAudioPlayer(episode?: Episode) {
         }
     };
 
+    // Enhanced seek function for streaming
     const seek = (time: number) => {
-        if (!audioElement.value) return;
-        audioElement.value.currentTime = time;
+        if (!audioElement.value || !audioState.canSeek) return;
+
+        // Clamp time to valid range
+        const clampedTime = Math.max(0, Math.min(time, audioState.duration));
+        audioElement.value.currentTime = clampedTime;
     };
 
     const seekToPercentage = (percentage: number) => {
-        if (!audioElement.value || audioState.duration === 0) return;
+        if (
+            !audioElement.value ||
+            audioState.duration === 0 ||
+            !audioState.canSeek
+        )
+            return;
+
         const time = (percentage / 100) * audioState.duration;
         seek(time);
     };
@@ -215,7 +291,7 @@ export function useAudioPlayer(episode?: Episode) {
         seekToPercentage,
         setVolume,
         mute,
-        formatTime,
         cleanup,
+        getStreamingUrl,
     };
 }

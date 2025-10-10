@@ -1,9 +1,10 @@
 <?php
 
+use App\Http\Controllers\AudioStreamController;
+use App\Http\Controllers\EmbedController;
+use App\Http\Controllers\EpisodeController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\EpisodeController;
-use App\Http\Controllers\EmbedController;
 
 // Home page - Episode listing
 Route::get('/', [EpisodeController::class, 'index'])->name('home');
@@ -15,6 +16,10 @@ Route::get('/api/embed/{id}/code', [EmbedController::class, 'generateEmbedCode']
 // API routes for episodes
 Route::get('/api/episodes', [EpisodeController::class, 'apiIndex'])->name('api.episodes');
 Route::get('/api/episodes/{id}', [EpisodeController::class, 'show'])->name('api.episodes.show');
+
+// Audio streaming routes
+Route::get('/api/stream/{filename}', [AudioStreamController::class, 'stream'])->name('audio.stream');
+Route::get('/api/episodes/{id}/stream', [AudioStreamController::class, 'getEpisodeStreamUrl'])->name('api.episodes.stream');
 
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
