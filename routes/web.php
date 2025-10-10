@@ -1,10 +1,10 @@
 <?php
 
+use App\Http\Controllers\AudioStreamController;
+use App\Http\Controllers\EmbedController;
+use App\Http\Controllers\EpisodeController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\EpisodeController;
-use App\Http\Controllers\EmbedController;
-use App\Http\Controllers\AudioStreamController;
 
 // Home page - Episode listing
 Route::get('/', [EpisodeController::class, 'index'])->name('home');

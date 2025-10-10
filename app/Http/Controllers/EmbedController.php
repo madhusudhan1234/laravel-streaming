@@ -2,10 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Inertia\Inertia;
-
 class EmbedController extends Controller
 {
     /**
@@ -14,13 +10,13 @@ class EmbedController extends Controller
     public function show($id)
     {
         $episode = $this->getEpisode($id);
-        
-        if (!$episode) {
+
+        if (! $episode) {
             abort(404, 'Episode not found');
         }
-        
+
         return view('embed', [
-            'episode' => $episode
+            'episode' => $episode,
         ]);
     }
 
@@ -30,18 +26,18 @@ class EmbedController extends Controller
     public function generateEmbedCode($id)
     {
         $episode = $this->getEpisode($id);
-        
-        if (!$episode) {
+
+        if (! $episode) {
             return response()->json(['error' => 'Episode not found'], 404);
         }
-        
+
         $embedUrl = url("/embed/{$id}");
         $embedCode = $this->buildEmbedCode($embedUrl, $episode);
-        
+
         return response()->json([
             'embedCode' => $embedCode,
             'embedUrl' => $embedUrl,
-            'episode' => $episode
+            'episode' => $episode,
         ]);
     }
 
@@ -52,16 +48,16 @@ class EmbedController extends Controller
     {
         try {
             $episodesPath = storage_path('app/episodes.json');
-            
-            if (!file_exists($episodesPath)) {
+
+            if (! file_exists($episodesPath)) {
                 return null;
             }
-            
+
             $episodesJson = file_get_contents($episodesPath);
             $episodesData = json_decode($episodesJson, true);
             $episodes = $episodesData['episodes'] ?? [];
-            
-            return collect($episodes)->firstWhere('id', (int)$id);
+
+            return collect($episodes)->firstWhere('id', (int) $id);
         } catch (\Exception $e) {
             return null;
         }
@@ -73,7 +69,7 @@ class EmbedController extends Controller
     private function buildEmbedCode($embedUrl, $episode)
     {
         $title = htmlspecialchars($episode['title']);
-        
+
         return sprintf(
             '<iframe src="%s" width="100%" height="120" frameborder="0" title="%s" allow="autoplay"></iframe>',
             $embedUrl,
