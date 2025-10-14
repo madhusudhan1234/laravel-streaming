@@ -1,0 +1,47 @@
+import:
+  - recipe/laravel.php
+
+config:
+  repository: 'https://github.com/madhusudhan1234/laravel-streaming.git'
+  shared_files: ['.env']
+  shared_dirs:
+    - storage
+  writable_dirs:
+    - storage
+    - bootstrap/cache
+  keep_releases: 2
+
+hosts:
+  production:
+    hostname: '{{DEPLOY_HOSTNAME}}'
+    remote_user: deployer
+    deploy_path: '/var/www/audio.lifeandmessage.com'
+    port: 22
+    ssh_options:
+      UserKnownHostsFile: /dev/null
+      StrictHostKeyChecking: no
+      PasswordAuthentication: no
+      IdentitiesOnly: yes
+      LogLevel: ERROR
+    forward_agent: true
+
+tasks:
+  init:
+    - run: 'mkdir -p {{deploy_path}}/.dep'
+  build:
+    - run: uptime
+  deploy:
+    - deploy:cleanup
+    - deploy:prepare
+    - deploy:vendors
+    - artisan:storage:link
+    - artisan:config:cache
+    - artisan:route:cache
+    - artisan:view:cache
+    - artisan:migrate
+    - deploy:symlink
+    - deploy:unlock
+    - deploy:cleanup
+
+after:
+  deploy:failed: deploy:unlock
