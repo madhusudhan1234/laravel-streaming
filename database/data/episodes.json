@@ -318,6 +318,17 @@
       "format": "MP3",
       "published_date": "2025-10-06",
       "description": "Rethinking How We Build, Secure, and Simplify Software"
+    },
+    {
+      "id": 30,
+      "title": "Episode 30 - Madhu Sudhan Subedi Tech Weekly",
+      "filename": "thirty-episode.MP3",
+      "url": "/audios/thirty-episode.MP3",
+      "duration": "05:25",
+      "file_size": "4.9 MB",
+      "format": "MP3",
+      "published_date": "2025-10-13",
+      "description": "Dotter, Claude Code, Regex, and Startup Insights"
     }
   ]
 }
