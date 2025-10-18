@@ -13,6 +13,7 @@ config:
 
 hosts:
   production:
+    hostname: 54.199.142.150
     remote_user: deployer
     deploy_path: '/var/www/audio.lifeandmessage.com'
     port: 22
