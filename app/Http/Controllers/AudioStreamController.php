@@ -137,7 +137,7 @@ class AudioStreamController extends Controller
     public function getEpisodeStreamUrl($id)
     {
         try {
-            $episodesPath = storage_path('app/episodes.json');
+            $episodesPath = database_path('data/episodes.json');
 
             if (! file_exists($episodesPath)) {
                 return response()->json(['error' => 'Episodes data not found'], 404);

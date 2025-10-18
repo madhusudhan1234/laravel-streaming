@@ -329,6 +329,17 @@
       "format": "MP3",
       "published_date": "2025-10-13",
       "description": "Dotter, Claude Code, Regex, and Startup Insights"
+    },
+    {
+      "id": 31,
+      "title": "Episode 31 - Madhu Sudhan Subedi Tech Weekly",
+      "filename": "thirtyone-episode.MP3",
+      "url": "/audios/thirtyone-episode.MP3",
+      "duration": "06:22",
+      "file_size": "6.1 MB",
+      "format": "MP3",
+      "published_date": "2025-10-19",
+      "description": "Code That Proves, Agents That Think, Systems That Last"
     }
   ]
 }
