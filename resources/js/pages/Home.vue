@@ -8,9 +8,13 @@
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
                         <div
-                            class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-r from-blue-600 to-purple-600"
+                            class="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden"
                         >
-                            <span class="text-xl font-bold text-white">📻</span>
+                            <img 
+                                src="/images/image.png" 
+                                alt="Tech Weekly Podcast Logo" 
+                                class="h-10 w-10 object-cover rounded-lg"
+                            />
                         </div>
                         <div>
                             <h1 class="text-xl font-bold text-gray-900">
@@ -125,15 +129,17 @@
                                     currentEpisode.format.toUpperCase()
                                 }}</span>
                             </div>
-                        </div>
 
-                        <!-- Audio Player -->
-                        <AudioPlayer
-                            v-if="currentEpisode"
-                            :episode="currentEpisode"
-                            :episodes="episodes"
-                            @episode-change="handleEpisodeChange"
-                        />
+                            <!-- Get Embed Code Button -->
+                            <div class="mt-4 border-t border-gray-100 pt-4">
+                                <button
+                                    @click="showEmbedCode"
+                                    class="w-full rounded-md border border-orange-200 bg-gradient-to-r from-orange-100 to-orange-50 px-4 py-3 text-sm font-medium text-orange-700 transition-colors hover:from-orange-200 hover:to-orange-100 focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 focus:outline-none"
+                                >
+                                    Get Embed Code
+                                </button>
+                            </div>
+                        </div>
 
                         <!-- Welcome Message when no episode selected -->
                         <div
@@ -235,11 +241,48 @@
                 </div>
             </div>
         </footer>
+
+        <!-- Embed Code Modal -->
+        <div
+            v-if="showEmbedModal"
+            class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black"
+            @click="closeEmbedModal"
+        >
+            <div
+                class="mx-4 w-full max-w-md rounded-lg bg-white p-6"
+                @click.stop
+            >
+                <h3 class="mb-4 text-lg font-semibold">Embed Code</h3>
+                <p class="mb-3 text-sm text-gray-600">
+                    Copy this code to embed the audio player on your website:
+                </p>
+                <textarea
+                    ref="embedCodeTextarea"
+                    :value="embedCode"
+                    readonly
+                    class="h-24 w-full resize-none rounded-md border border-gray-300 bg-gray-50 p-3 font-mono text-sm"
+                ></textarea>
+                <div class="mt-4 flex justify-end space-x-3">
+                    <button
+                        @click="closeEmbedModal"
+                        class="px-4 py-2 text-gray-600 transition-colors hover:text-gray-800"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        @click="copyEmbedCode"
+                        class="rounded-md bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2 text-white shadow-md transition-colors hover:from-orange-600 hover:to-orange-700 hover:shadow-lg"
+                    >
+                        Copy Code
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import AudioPlayer from '@/components/AudioPlayer.vue';
+// import AudioPlayer from '@/components/AudioPlayer.vue';
 import EpisodeList from '@/components/EpisodeList.vue';
 import { useAudioPlayer, type Episode } from '@/composables/useAudioPlayer';
 import { computed, onMounted, ref } from 'vue';
@@ -292,11 +335,47 @@ const latestEpisodeDate = computed(() => {
 // Current episode state
 const currentEpisode = ref<Episode | null>(null);
 
+// Embed modal state
+const showEmbedModal = ref(false);
+const embedCode = ref('');
+const embedCodeTextarea = ref<HTMLTextAreaElement>();
+
 // Methods
 const handleEpisodeSelect = (episode: Episode) => {
     if (currentEpisode.value?.id !== episode.id) {
         currentEpisode.value = episode;
         initAudio(episode);
+    }
+};
+
+const showEmbedCode = async () => {
+    if (!currentEpisode.value) return;
+
+    try {
+        const response = await fetch(`/api/embed/${currentEpisode.value.id}/code`);
+        const data = await response.json();
+        embedCode.value = data.embedCode;
+        showEmbedModal.value = true;
+    } catch (error) {
+        console.error('Failed to generate embed code:', error);
+    }
+};
+
+const closeEmbedModal = () => {
+    showEmbedModal.value = false;
+};
+
+const copyEmbedCode = async () => {
+    if (embedCodeTextarea.value) {
+        try {
+            await navigator.clipboard.writeText(embedCode.value);
+            closeEmbedModal();
+        } catch {
+            // Fallback for older browsers
+            embedCodeTextarea.value.select();
+            document.execCommand('copy');
+            closeEmbedModal();
+        }
     }
 };
 

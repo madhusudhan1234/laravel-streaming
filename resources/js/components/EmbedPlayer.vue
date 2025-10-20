@@ -197,6 +197,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { useGlobalAudioManager } from '@/composables/useGlobalAudioManager';
 
 interface Episode {
     id: number;
@@ -217,6 +218,15 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     autoplay: false,
     fullSiteUrl: '/',
+});
+
+// Global audio manager
+const { registerPlayer } = useGlobalAudioManager();
+const audioManager = registerPlayer(() => {
+    if (audioElement.value && isPlaying.value) {
+        audioElement.value.pause();
+        isPlaying.value = false;
+    }
 });
 
 // Audio state
@@ -262,7 +272,9 @@ const togglePlayPause = async () => {
         if (isPlaying.value) {
             audioElement.value.pause();
             isPlaying.value = false;
+            audioManager.notifyPause();
         } else {
+            audioManager.notifyPlay(props.episode.id);
             await audioElement.value.play();
             isPlaying.value = true;
         }
@@ -330,6 +342,7 @@ const handleProgress = () => {
 const handleEnded = () => {
     isPlaying.value = false;
     currentTime.value = 0;
+    audioManager.notifyStop();
 };
 
 const handleError = () => {
@@ -347,6 +360,7 @@ const handleCanPlay = () => {
 
     // Auto-play if enabled
     if (props.autoplay && audioElement.value) {
+        audioManager.notifyPlay(props.episode.id);
         audioElement.value
             .play()
             .then(() => {
@@ -393,6 +407,8 @@ onUnmounted(() => {
     if (audioElement.value) {
         audioElement.value.pause();
     }
+    // Unregister from global audio manager
+    audioManager.unregister();
 });
 </script>
 

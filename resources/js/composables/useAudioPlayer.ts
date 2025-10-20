@@ -1,4 +1,5 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { useGlobalAudioManager } from './useGlobalAudioManager';
 
 export interface Episode {
     id: number;
@@ -24,6 +25,15 @@ export interface AudioState {
 
 export function useAudioPlayer(episode?: Episode) {
     const audioElement = ref<HTMLAudioElement | null>(null);
+    
+    // Initialize global audio manager
+    const { registerPlayer } = useGlobalAudioManager();
+    const audioManager = registerPlayer(() => {
+        // Pause callback for global audio manager
+        if (audioElement.value && !audioElement.value.paused) {
+            audioElement.value.pause();
+        }
+    });
 
     const audioState = reactive<AudioState>({
         isPlaying: false,
@@ -92,15 +102,21 @@ export function useAudioPlayer(episode?: Episode) {
 
         audioElement.value.addEventListener('play', () => {
             audioState.isPlaying = true;
+            // Notify global audio manager
+            audioManager.notifyPlay(episode?.id);
         });
 
         audioElement.value.addEventListener('pause', () => {
             audioState.isPlaying = false;
+            // Notify global audio manager
+            audioManager.notifyPause();
         });
 
         audioElement.value.addEventListener('ended', () => {
             audioState.isPlaying = false;
             audioState.currentTime = 0;
+            // Notify global audio manager
+            audioManager.notifyStop();
         });
 
         audioElement.value.addEventListener('error', () => {
@@ -123,6 +139,8 @@ export function useAudioPlayer(episode?: Episode) {
         if (!audioElement.value) return;
 
         try {
+            // Notify global audio manager before playing
+            audioManager.notifyPlay(episode?.id);
             await audioElement.value.play();
         } catch (error) {
             audioState.error = 'Failed to play audio';
@@ -189,6 +207,8 @@ export function useAudioPlayer(episode?: Episode) {
             audioElement.value.src = '';
             audioElement.value = null;
         }
+        // Unregister from global audio manager
+        audioManager.unregister();
     };
 
     // Initialize with episode if provided
@@ -217,5 +237,6 @@ export function useAudioPlayer(episode?: Episode) {
         mute,
         formatTime,
         cleanup,
+        audioManager, // Expose audio manager for advanced use cases
     };
 }
