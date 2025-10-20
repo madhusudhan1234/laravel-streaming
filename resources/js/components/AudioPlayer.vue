@@ -251,11 +251,11 @@
         </div>
 
         <!-- Embed Code Button -->
-        <div class="embed-section border-t border-gray-200 pt-4">
+        <div class="embed-section">
             <button
                 @click="showEmbedCode"
                 :disabled="!episode"
-                class="embed-btn rounded-md border border-orange-200 bg-gradient-to-r from-orange-100 to-orange-50 px-4 py-2 text-sm font-medium text-orange-700 transition-colors hover:from-orange-200 hover:to-orange-100 focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                class="embed-btn w-full rounded-md border border-orange-200 bg-gradient-to-r from-orange-100 to-orange-50 px-4 py-3 text-sm font-medium text-orange-700 transition-colors hover:from-orange-200 hover:to-orange-100 focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
             >
                 Get Embed Code
             </button>

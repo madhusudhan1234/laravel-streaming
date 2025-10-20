@@ -64,6 +64,7 @@ services:
       - "3000:3000"
       - "3001:3001"
       - "5179:5179"
+      - "5180:5180"
     working_dir: /var/www
     command: sh -c "npm install && npm run dev -- --host"    
     tty: true

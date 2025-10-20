@@ -1,0 +1,56 @@
+<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background geometric pattern -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e5e5e5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d1d1d1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="400" height="400" fill="url(#bgGradient)"/>
+  
+  <!-- Geometric background lines -->
+  <g stroke="#999" stroke-width="2" fill="none">
+    <path d="M50 50 L150 20 L200 80 L100 120 Z"/>
+    <path d="M250 30 L350 60 L320 140 L220 110 Z"/>
+    <path d="M80 200 L180 170 L210 250 L110 280 Z"/>
+    <path d="M280 180 L380 210 L350 290 L250 260 Z"/>
+    <path d="M120 320 L220 290 L250 370 L150 400 Z"/>
+    <path d="M300 310 L400 340 L370 420 L270 390 Z"/>
+  </g>
+  
+  <!-- Person silhouette -->
+  <g transform="translate(200, 200)">
+    <!-- Hoodie -->
+    <path d="M-80 80 Q-85 70 -80 60 L-70 40 Q-60 30 -40 35 L-30 40 Q-20 45 -10 40 L10 40 Q20 45 30 40 L40 35 Q60 30 70 40 L80 60 Q85 70 80 80 L75 120 Q70 140 60 150 L50 160 Q40 165 30 160 L20 155 Q10 150 0 155 Q-10 150 -20 155 L-30 160 Q-40 165 -50 160 L-60 150 Q-70 140 -75 120 Z" fill="#8B5A8C"/>
+    
+    <!-- Hood -->
+    <path d="M-70 40 Q-75 30 -70 20 Q-60 10 -40 15 L-30 20 Q-20 25 -10 20 L10 20 Q20 25 30 20 L40 15 Q60 10 70 20 Q75 30 70 40 L60 50 Q50 55 40 50 L30 45 Q20 40 10 45 Q0 50 -10 45 Q-20 40 -30 45 L-40 50 Q-50 55 -60 50 Z" fill="#A0C4C7"/>
+    
+    <!-- T-shirt -->
+    <path d="M-30 40 Q-35 45 -30 50 L-25 80 Q-20 100 -15 110 L-10 120 Q-5 125 0 120 Q5 125 10 120 L15 110 Q20 100 25 80 L30 50 Q35 45 30 40 L20 35 Q10 30 0 35 Q-10 30 -20 35 Z" fill="#E74C3C"/>
+    
+    <!-- Head -->
+    <ellipse cx="0" cy="-20" rx="35" ry="40" fill="#D4A574"/>
+    
+    <!-- Hair -->
+    <path d="M-35 -50 Q-40 -60 -30 -65 Q-20 -70 -10 -65 Q0 -70 10 -65 Q20 -70 30 -65 Q40 -60 35 -50 Q30 -40 25 -35 L20 -30 Q15 -25 10 -30 Q5 -35 0 -30 Q-5 -35 -10 -30 Q-15 -25 -20 -30 L-25 -35 Q-30 -40 -35 -50 Z" fill="#2C2C2C"/>
+    
+    <!-- Eyes -->
+    <ellipse cx="-12" cy="-25" rx="4" ry="3" fill="white"/>
+    <ellipse cx="12" cy="-25" rx="4" ry="3" fill="white"/>
+    <ellipse cx="-12" cy="-25" rx="2" ry="2" fill="black"/>
+    <ellipse cx="12" cy="-25" rx="2" ry="2" fill="black"/>
+    
+    <!-- Eyebrows -->
+    <path d="M-18 -32 Q-12 -35 -6 -32" stroke="#2C2C2C" stroke-width="2" fill="none"/>
+    <path d="M6 -32 Q12 -35 18 -32" stroke="#2C2C2C" stroke-width="2" fill="none"/>
+    
+    <!-- Mustache -->
+    <path d="M-15 -10 Q-8 -5 0 -8 Q8 -5 15 -10" stroke="#2C2C2C" stroke-width="3" fill="none"/>
+    
+    <!-- Beard -->
+    <path d="M-25 -5 Q-30 5 -25 15 Q-20 25 -15 30 Q-10 35 -5 30 Q0 35 5 30 Q10 35 15 30 Q20 25 25 15 Q30 5 25 -5 Q20 0 15 5 Q10 10 5 5 Q0 10 -5 5 Q-10 10 -15 5 Q-20 0 -25 -5 Z" fill="#2C2C2C"/>
+  </g>
+</svg>
