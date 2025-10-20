@@ -396,13 +396,7 @@ const handleEpisodePlay = (episode: Episode) => {
     }
 };
 
-const handleEpisodeChange = (episode: Episode) => {
-    currentEpisode.value = episode;
-    initAudio(episode);
-    setTimeout(() => {
-        play();
-    }, 100);
-};
+
 
 const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
