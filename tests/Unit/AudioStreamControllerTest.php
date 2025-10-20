@@ -34,7 +34,7 @@ class AudioStreamControllerTest extends TestCase
             unlink($audioPath);
         }
         
-        $episodesPath = storage_path('app/episodes.json');
+        $episodesPath = database_path('data/episodes.json');
         if (file_exists($episodesPath)) {
             unlink($episodesPath);
         }
@@ -66,7 +66,13 @@ class AudioStreamControllerTest extends TestCase
             ]
         ];
 
-        file_put_contents(storage_path('app/episodes.json'), json_encode($testData));
+        // Create the directory if it doesn't exist
+        $episodesDir = database_path('data');
+        if (!is_dir($episodesDir)) {
+            mkdir($episodesDir, 0755, true);
+        }
+
+        file_put_contents(database_path('data/episodes.json'), json_encode($testData));
     }
 
     public function test_stream_returns_404_for_non_existent_file()
