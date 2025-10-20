@@ -23,7 +23,7 @@
                 :key="episode.id"
                 class="episode-card transform overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
                 :class="{
-                    'translate-y-0 bg-gradient-to-r from-orange-50 to-white shadow-2xl ring-2 ring-orange-400':
+                    'translate-y-0 bg-gradient-to-r from-orange-500 to-white shadow-2xl ring-2 ring-orange-400':
                         currentEpisode?.id === episode.id,
                     'hover:ring-1 hover:ring-orange-200':
                         currentEpisode?.id !== episode.id,
@@ -436,35 +436,7 @@ const playEpisode = (episode: Episode) => {
     emit('episodePlay', episode);
 };
 
-const shareEpisode = (episode: Episode) => {
-    // Implement share functionality
-    if (navigator.share) {
-        navigator.share({
-            title: episode.title,
-            text: `Listen to ${episode.title}`,
-            url: window.location.href,
-        });
-    } else {
-        // Fallback: copy to clipboard
-        navigator.clipboard.writeText(window.location.href);
-    }
-};
 
-const showEmbedCode = async (episode: Episode) => {
-    selectedEpisodeForEmbed.value = episode;
-
-    try {
-        const response = await fetch(`/api/embed/${episode.id}/code`);
-        const data = await response.json();
-        embedCode.value = data.embedCode;
-        showEmbedModal.value = true;
-    } catch (error) {
-        console.error('Failed to generate embed code:', error);
-        // Fallback embed code
-        embedCode.value = `<iframe src="${window.location.origin}/embed/${episode.id}" width="100%" height="120" frameborder="0" allow="autoplay"></iframe>`;
-        showEmbedModal.value = true;
-    }
-};
 
 const closeEmbedModal = () => {
     showEmbedModal.value = false;
