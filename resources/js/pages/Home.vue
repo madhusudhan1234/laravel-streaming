@@ -73,6 +73,7 @@
                         :duration="audioState.duration"
                         @episode-select="handleEpisodeSelect"
                         @episode-play="handleEpisodePlay"
+                        @episode-seek="handleEpisodeSeek"
                     />
                 </div>
 
@@ -126,7 +127,7 @@
                                 <span>{{ currentEpisode.duration }}</span>
                                 <span>{{ currentEpisode.file_size }}</span>
                                 <span>{{
-                                    currentEpisode.format.toUpperCase()
+                                    currentEpisode.format?.toUpperCase() || 'MP3'
                                 }}</span>
                             </div>
 
@@ -294,12 +295,14 @@ interface Props {
 const props = defineProps<Props>();
 
 // Audio player composable
-const { audioState, progress, initAudio, play, pause } = useAudioPlayer();
+const { audioState, progress, initAudio, play, pause, seekToPercentage } = useAudioPlayer();
 
 // Computed properties
 const totalDuration = computed(() => {
     const totalSeconds = props.episodes.reduce((total, episode) => {
         // Parse duration string (e.g., "45:30" or "1:23:45")
+        if (!episode.duration) return total; // Skip if no duration
+        
         const parts = episode.duration.split(':').map(Number);
         let seconds = 0;
         if (parts.length === 2) {
@@ -396,6 +399,12 @@ const handleEpisodePlay = (episode: Episode) => {
     }
 };
 
+const handleEpisodeSeek = (episode: Episode, percentage: number) => {
+    if (currentEpisode.value?.id === episode.id) {
+        seekToPercentage(percentage);
+    }
+};
+
 
 
 const formatDate = (dateString: string): string => {
@@ -407,12 +416,16 @@ const formatDate = (dateString: string): string => {
     });
 };
 
-// Initialize with first episode on mount
+// Initialize with latest episode on mount (Episode 31)
 onMounted(() => {
     if (props.episodes.length > 0) {
-        // Don't auto-play, just initialize the first episode
-        currentEpisode.value = props.episodes[0];
-        initAudio(props.episodes[0]);
+        // Find the latest episode (highest ID or most recent date)
+        const latestEpisode = props.episodes.reduce((latest, episode) => {
+            return episode.id > latest.id ? episode : latest;
+        });
+        // Don't auto-play, just initialize the latest episode
+        currentEpisode.value = latestEpisode;
+        initAudio(latestEpisode);
     }
 });
 </script>
