@@ -61,6 +61,40 @@
                 </svg>
             </button>
 
+            <!-- 10-second backward button -->
+            <button
+                @click="skipBackward"
+                :disabled="!episode || audioState.duration === 0"
+                class="skip-btn flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:bg-gray-200 hover:scale-105 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-300"
+                aria-label="Skip backward 10 seconds"
+                title="Skip backward 10 seconds"
+            >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <!-- Backward arrow with 10 indicator -->
+                    <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/>
+                    <!-- Small "10" integrated into the design -->
+                    <circle cx="16" cy="4" r="3" fill="currentColor"/>
+                    <path d="M14.5 2.5h1v3h-1v-3zm2 0h1v1.5h-1v-1.5zm0 1.5h1v1.5h-1v-1.5z" fill="white"/>
+                </svg>
+            </button>
+
+            <!-- 10-second forward button -->
+            <button
+                @click="skipForward"
+                :disabled="!episode || audioState.duration === 0"
+                class="skip-btn flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:bg-gray-200 hover:scale-105 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-300"
+                aria-label="Skip forward 10 seconds"
+                title="Skip forward 10 seconds"
+            >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <!-- Forward arrow with 10 indicator -->
+                    <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/>
+                    <!-- Small "10" integrated into the design -->
+                    <circle cx="8" cy="4" r="3" fill="currentColor"/>
+                    <path d="M6.5 2.5h1v3h-1v-3zm2 0h1v1.5h-1v-1.5zm0 1.5h1v1.5h-1v-1.5z" fill="white"/>
+                </svg>
+            </button>
+
             <button
                 @click="previousEpisode"
                 :disabled="!hasPrevious"
@@ -101,7 +135,7 @@
             >
                 <!-- Background Waveform -->
                 <div
-                    class="waveform-bars flex h-20 items-end justify-between space-x-1"
+                    class="waveform-bars flex h-20 items-end justify-between"
                 >
                     <div
                         v-for="(bar, index) in waveformBars"
@@ -354,29 +388,40 @@ const waveformContainer = ref<HTMLElement>();
 const hoverIndex = ref(-1);
 
 // Waveform configuration
-const totalBars = 120;
+const totalBars = 180;
 const barWidth = computed(() => {
-    if (!waveformContainer.value) return 3;
+    if (!waveformContainer.value) return 2;
     const containerWidth = waveformContainer.value.offsetWidth - 32; // Account for padding
     return Math.max(
         2,
-        Math.floor((containerWidth - (totalBars - 1) * 4) / totalBars),
-    ); // 4px gap between bars
+        Math.floor(containerWidth / totalBars), // Remove gap calculation for full width
+    );
 });
 
 // Generate waveform bars with realistic audio-like pattern
 const waveformBars = computed(() => {
     const bars = [];
     for (let i = 0; i < totalBars; i++) {
-        // Create a more realistic waveform pattern similar to SoundCloud
-        const baseHeight = 30 + Math.sin(i * 0.1) * 25;
-        const variation = Math.sin(i * 0.3) * 30 + Math.cos(i * 0.2) * 25;
-        const randomness = (Math.random() - 0.5) * 40;
-        const height = Math.max(
-            20,
-            Math.min(100, baseHeight + variation + randomness),
-        );
-
+        // Create multi-layer wave algorithm similar to embed player
+        const mainWave = Math.sin(i * 0.08) * 0.4;
+        const secondaryWave = Math.sin(i * 0.23) * 0.25;
+        const detailWave = Math.sin(i * 0.47) * 0.15;
+        
+        // Combine waves and add randomness
+        const combined = mainWave + secondaryWave + detailWave;
+        const randomness = (Math.random() - 0.5) * 0.3;
+        
+        // Scale to percentage (8% to 85% range)
+        let height = ((combined + randomness + 1) / 2) * 77 + 8;
+        
+        // Make every 3rd bar smaller for detail
+        if (i % 3 === 0) {
+            height *= 0.4;
+        }
+        
+        // Ensure bounds
+        height = Math.max(8, Math.min(85, height));
+        
         bars.push({ height });
     }
     return bars;
@@ -458,6 +503,46 @@ const nextEpisode = () => {
     }
 };
 
+// 10-second skip functions
+const skipBackward = () => {
+    if (audioState.duration === 0) return;
+    const currentTime = (progress.value / 100) * audioState.duration;
+    const newTime = Math.max(0, currentTime - 10);
+    const newPercentage = (newTime / audioState.duration) * 100;
+    seekToPercentage(newPercentage);
+};
+
+const skipForward = () => {
+    if (audioState.duration === 0) return;
+    const currentTime = (progress.value / 100) * audioState.duration;
+    const newTime = Math.min(audioState.duration, currentTime + 10);
+    const newPercentage = (newTime / audioState.duration) * 100;
+    seekToPercentage(newPercentage);
+};
+
+// Keyboard shortcuts
+const handleKeydown = (event: KeyboardEvent) => {
+    // Only handle shortcuts when not typing in an input
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+    }
+
+    switch (event.key) {
+        case 'ArrowLeft':
+            event.preventDefault();
+            skipBackward();
+            break;
+        case 'ArrowRight':
+            event.preventDefault();
+            skipForward();
+            break;
+        case ' ':
+            event.preventDefault();
+            togglePlay();
+            break;
+    }
+};
+
 const showEmbedCode = async () => {
     if (!props.episode) return;
 
@@ -509,10 +594,12 @@ const handleResize = () => {
 
 onMounted(() => {
     window.addEventListener('resize', handleResize);
+    window.addEventListener('keydown', handleKeydown);
 });
 
 onUnmounted(() => {
     window.removeEventListener('resize', handleResize);
+    window.removeEventListener('keydown', handleKeydown);
 });
 </script>
 
@@ -597,6 +684,7 @@ onUnmounted(() => {
 .play-pause-btn:focus,
 .previous-btn:focus,
 .next-btn:focus,
+.skip-btn:focus,
 .embed-btn:focus {
     outline: none;
     ring: 2px;
@@ -604,11 +692,33 @@ onUnmounted(() => {
     ring-offset: 2px;
 }
 
-.waveform-container:focus {
-    outline: none;
-    ring: 2px;
-    ring-color: #f97316;
-    ring-offset: 2px;
+/* Skip button hover effects */
+.skip-btn:hover:not(:disabled) {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.skip-btn:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+/* Visual feedback for skip actions */
+.skip-btn.skip-active {
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: white;
+    animation: skip-feedback 0.3s ease-out;
+}
+
+@keyframes skip-feedback {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
 }
 
 /* Reduced motion support */

@@ -191,6 +191,46 @@
                             </div>
                         </div>
 
+                        <!-- Skip Controls - Only show for currently playing episode -->
+                        <div
+                            v-if="currentEpisode?.id === episode.id && isPlaying"
+                            class="skip-controls mt-3 flex items-center justify-center space-x-4"
+                        >
+                            <!-- 10-second backward button -->
+                            <button
+                                @click.stop="skipBackward(episode)"
+                                :disabled="!duration || duration === 0"
+                                class="skip-btn flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:bg-gray-200 hover:scale-105 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-300"
+                                aria-label="Skip backward 10 seconds"
+                                title="Skip backward 10 seconds"
+                            >
+                                <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <!-- Backward arrow with 10 indicator -->
+                                    <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/>
+                                    <!-- Small "10" integrated into the design -->
+                                    <circle cx="16" cy="4" r="2.5" fill="currentColor"/>
+                                    <path d="M14.8 2.8h0.8v2.4h-0.8v-2.4zm1.2 0h0.8v1.2h-0.8v-1.2zm0 1.2h0.8v1.2h-0.8v-1.2z" fill="white"/>
+                                </svg>
+                            </button>
+
+                            <!-- 10-second forward button -->
+                            <button
+                                @click.stop="skipForward(episode)"
+                                :disabled="!duration || duration === 0"
+                                class="skip-btn flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:bg-gray-200 hover:scale-105 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-300"
+                                aria-label="Skip forward 10 seconds"
+                                title="Skip forward 10 seconds"
+                            >
+                                <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <!-- Forward arrow with 10 indicator -->
+                                    <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/>
+                                    <!-- Small "10" integrated into the design -->
+                                    <circle cx="8" cy="4" r="2.5" fill="currentColor"/>
+                                    <path d="M6.8 2.8h0.8v2.4h-0.8v-2.4zm1.2 0h0.8v1.2h-0.8v-1.2zm0 1.2h0.8v1.2h-0.8v-1.2z" fill="white"/>
+                                </svg>
+                            </button>
+                        </div>
+
                         <!-- Time Display -->
                         <div
                             class="time-display mt-3 flex items-center justify-between text-xs text-gray-500"
@@ -297,6 +337,7 @@ interface Props {
 interface Emits {
     (e: 'episodeSelect', episode: Episode): void;
     (e: 'episodePlay', episode: Episode): void;
+    (e: 'episodeSeek', episode: Episode, percentage: number): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -399,11 +440,10 @@ const handleWaveformClick = (episode: Episode, event: MouseEvent) => {
     const container = event.currentTarget as HTMLElement;
     const rect = container.getBoundingClientRect();
     const clickX = event.clientX - rect.left;
-    const percentage = (clickX / rect.width) * 100;
+    const percentage = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
 
-    // Emit seek event (you'll need to handle this in the parent component)
-    // For now, we'll just trigger a play event with the seek percentage
-    console.log(`Seeking to ${percentage}% in episode ${episode.id}`);
+    // Emit seek event to parent component
+    emit('episodeSeek', episode, percentage);
 };
 
 // Handle waveform hover
@@ -434,6 +474,29 @@ const selectEpisode = (episode: Episode) => {
 
 const playEpisode = (episode: Episode) => {
     emit('episodePlay', episode);
+};
+
+// 10-second skip functions
+const skipBackward = (episode: Episode) => {
+    if (props.currentEpisode?.id !== episode.id || !props.duration) return;
+    
+    const currentTime = (props.progress / 100) * props.duration;
+    const newTime = Math.max(0, currentTime - 10);
+    const newPercentage = (newTime / props.duration) * 100;
+    
+    // Emit seek event to parent component
+    emit('episodeSeek', episode, newPercentage);
+};
+
+const skipForward = (episode: Episode) => {
+    if (props.currentEpisode?.id !== episode.id || !props.duration) return;
+    
+    const currentTime = (props.progress / 100) * props.duration;
+    const newTime = Math.min(props.duration, currentTime + 10);
+    const newPercentage = (newTime / props.duration) * 100;
+    
+    // Emit seek event to parent component
+    emit('episodeSeek', episode, newPercentage);
 };
 
 
