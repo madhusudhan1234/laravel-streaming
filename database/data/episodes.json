@@ -340,6 +340,17 @@
       "format": "MP3",
       "published_date": "2025-10-19",
       "description": "Code That Proves, Agents That Think, Systems That Last"
+    },
+    {
+      "id": 32,
+      "title": "Episode 32 - Madhu Sudhan Subedi Tech Weekly",
+      "filename": "thirtytwo-episode.MP3",
+      "url": "/audios/thirtytwo-episode.MP3",
+      "duration": "06:22",
+      "file_size": "6.4 MB",
+      "format": "MP3",
+      "published_date": "2025-10-26",
+      "description": "WS Outage Breakdown, Digital Immortality, Junior Devs, Werner Vogels & Spotify System Design"
     }
   ]
 }
