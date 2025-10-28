@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Episode;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
 
@@ -16,17 +15,19 @@ class EpisodeSeeder extends Seeder
     {
         // Read the episodes.json file
         $jsonPath = database_path('data/episodes.json');
-        
-        if (!File::exists($jsonPath)) {
-            $this->command->error('Episodes JSON file not found at: ' . $jsonPath);
+
+        if (! File::exists($jsonPath)) {
+            $this->command->error('Episodes JSON file not found at: '.$jsonPath);
+
             return;
         }
 
         $jsonContent = File::get($jsonPath);
         $data = json_decode($jsonContent, true);
 
-        if (!$data || !isset($data['episodes'])) {
+        if (! $data || ! isset($data['episodes'])) {
             $this->command->error('Invalid JSON structure in episodes.json');
+
             return;
         }
 
@@ -48,6 +49,6 @@ class EpisodeSeeder extends Seeder
             ]);
         }
 
-        $this->command->info('Successfully seeded ' . count($data['episodes']) . ' episodes.');
+        $this->command->info('Successfully seeded '.count($data['episodes']).' episodes.');
     }
 }

@@ -60,7 +60,7 @@ class EmbedController extends Controller
      */
     private function buildEmbedCode($embedUrl, $episode)
     {
-        $title = htmlspecialchars($episode['title']);
+        $title = htmlspecialchars($episode->title);
 
         return sprintf(
             '<iframe src="%s" width="100%%" height="120" frameborder="0" title="%s" allow="autoplay"></iframe>',

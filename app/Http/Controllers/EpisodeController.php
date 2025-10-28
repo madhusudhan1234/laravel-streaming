@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Episode;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 
 class EpisodeController extends Controller
 {
@@ -94,61 +94,67 @@ class EpisodeController extends Controller
     {
         try {
             // Validate audio file exists
-            if (!$request->hasFile('audio_file')) {
+            if (! $request->hasFile('audio_file')) {
                 Log::error('No audio file provided in request');
+
                 return redirect()->back()->withErrors(['error' => 'No audio file provided']);
             }
 
             $audioFile = $request->file('audio_file');
-            
+
             // Check if file is valid
-            if (!$audioFile->isValid()) {
+            if (! $audioFile->isValid()) {
                 Log::error('Invalid audio file uploaded', [
                     'error' => $audioFile->getError(),
-                    'error_message' => $audioFile->getErrorMessage()
+                    'error_message' => $audioFile->getErrorMessage(),
                 ]);
-                return redirect()->back()->withErrors(['error' => 'The audio file failed to upload. Error: ' . $audioFile->getErrorMessage()]);
+
+                return redirect()->back()->withErrors(['error' => 'The audio file failed to upload. Error: '.$audioFile->getErrorMessage()]);
             }
 
             // Check directory permissions
             $audioDir = public_path('audios');
-            if (!is_dir($audioDir)) {
-                Log::error('Audio directory does not exist: ' . $audioDir);
+            if (! is_dir($audioDir)) {
+                Log::error('Audio directory does not exist: '.$audioDir);
+
                 return redirect()->back()->withErrors(['error' => 'Audio directory does not exist']);
             }
 
-            if (!is_writable($audioDir)) {
-                Log::error('Audio directory is not writable: ' . $audioDir);
+            if (! is_writable($audioDir)) {
+                Log::error('Audio directory is not writable: '.$audioDir);
+
                 return redirect()->back()->withErrors(['error' => 'Audio directory is not writable']);
             }
 
             // Generate filename and attempt upload
-            $filename = time() . '_' . $audioFile->getClientOriginalName();
+            $filename = time().'_'.$audioFile->getClientOriginalName();
             $destinationPath = $audioDir;
-            
+
             Log::info('Attempting to upload file', [
                 'original_name' => $audioFile->getClientOriginalName(),
                 'filename' => $filename,
                 'destination' => $destinationPath,
                 'file_size' => $audioFile->getSize(),
-                'mime_type' => $audioFile->getMimeType()
+                'mime_type' => $audioFile->getMimeType(),
             ]);
 
             // Try to move the file
             $uploadSuccess = $audioFile->move($destinationPath, $filename);
-            
-            if (!$uploadSuccess) {
+
+            if (! $uploadSuccess) {
                 Log::error('Failed to move uploaded file to destination', [
                     'filename' => $filename,
-                    'destination' => $destinationPath
+                    'destination' => $destinationPath,
                 ]);
+
                 return redirect()->back()->withErrors(['error' => 'The audio file failed to upload. Please store inside the public/audios folder']);
             }
 
             // Verify file was actually uploaded
-            $filePath = public_path('audios/' . $filename);
-            if (!file_exists($filePath)) {
+            $filePath = public_path('audios/'.$filename);
+            if (! file_exists($filePath)) {
                 Log::error('File does not exist after upload', ['path' => $filePath]);
+
                 return redirect()->back()->withErrors(['error' => 'File upload verification failed']);
             }
 
@@ -160,7 +166,7 @@ class EpisodeController extends Controller
                 'filename' => $filename,
                 'path' => $filePath,
                 'size' => $fileSize,
-                'format' => $format
+                'format' => $format,
             ]);
 
             // Extract duration using getID3
@@ -174,7 +180,7 @@ class EpisodeController extends Controller
                 }
             } catch (\Exception $e) {
                 // Log the error but don't fail the episode creation
-                Log::warning('Failed to extract audio duration: ' . $e->getMessage());
+                Log::warning('Failed to extract audio duration: '.$e->getMessage());
             }
 
             // Create episode
@@ -182,7 +188,7 @@ class EpisodeController extends Controller
                 'title' => $request->title,
                 'description' => $request->description,
                 'filename' => $filename,
-                'url' => '/audios/' . $filename,
+                'url' => '/audios/'.$filename,
                 'file_size' => $fileSize,
                 'format' => $format,
                 'published_date' => $request->published_date,
@@ -197,16 +203,16 @@ class EpisodeController extends Controller
         } catch (\Exception $e) {
             Log::error('Exception during episode creation', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             // Clean up uploaded file if episode creation fails
-            if (isset($filename) && file_exists(public_path('audios/' . $filename))) {
-                unlink(public_path('audios/' . $filename));
+            if (isset($filename) && file_exists(public_path('audios/'.$filename))) {
+                unlink(public_path('audios/'.$filename));
             }
-            
+
             // Return redirect back with error message
-            return redirect()->back()->withErrors(['error' => 'Error creating episode: ' . $e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'Error creating episode: '.$e->getMessage()]);
         }
     }
 
@@ -233,18 +239,18 @@ class EpisodeController extends Controller
             // Handle file upload if new file is provided
             if ($request->hasFile('audio_file')) {
                 // Delete old file
-                $oldFilePath = public_path('audios/' . $episode->filename);
+                $oldFilePath = public_path('audios/'.$episode->filename);
                 if (file_exists($oldFilePath)) {
                     unlink($oldFilePath);
                 }
 
                 // Upload new file
                 $audioFile = $request->file('audio_file');
-                $filename = time() . '_' . $audioFile->getClientOriginalName();
+                $filename = time().'_'.$audioFile->getClientOriginalName();
                 $audioFile->move(public_path('audios'), $filename);
 
                 // Get file info
-                $filePath = public_path('audios/' . $filename);
+                $filePath = public_path('audios/'.$filename);
                 $fileSize = filesize($filePath);
                 $format = $audioFile->getClientOriginalExtension();
 
@@ -259,11 +265,11 @@ class EpisodeController extends Controller
                     }
                 } catch (\Exception $e) {
                     // Log the error but don't fail the episode update
-                    Log::warning('Failed to extract audio duration: ' . $e->getMessage());
+                    Log::warning('Failed to extract audio duration: '.$e->getMessage());
                 }
 
                 $updateData['filename'] = $filename;
-                $updateData['url'] = '/audios/' . $filename;
+                $updateData['url'] = '/audios/'.$filename;
                 $updateData['file_size'] = $fileSize;
                 $updateData['format'] = $format;
                 $updateData['duration'] = $duration;
@@ -276,7 +282,7 @@ class EpisodeController extends Controller
 
         } catch (\Exception $e) {
             // Return redirect back with error message
-            return redirect()->back()->withErrors(['error' => 'Error updating episode: ' . $e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'Error updating episode: '.$e->getMessage()]);
         }
     }
 
@@ -287,7 +293,7 @@ class EpisodeController extends Controller
     {
         try {
             // Delete audio file
-            $filePath = public_path('audios/' . $episode->filename);
+            $filePath = public_path('audios/'.$episode->filename);
             if (file_exists($filePath)) {
                 unlink($filePath);
             }
@@ -301,7 +307,7 @@ class EpisodeController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Error deleting episode: ' . $e->getMessage(),
+                'message' => 'Error deleting episode: '.$e->getMessage(),
             ], 500);
         }
     }

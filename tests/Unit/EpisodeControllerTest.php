@@ -16,8 +16,8 @@ class EpisodeControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->controller = new EpisodeController();
-        
+        $this->controller = new EpisodeController;
+
         // Create test episodes in database
         $this->createTestEpisodes();
     }
@@ -33,7 +33,7 @@ class EpisodeControllerTest extends TestCase
             'file_size' => '4.8 MB',
             'format' => 'MP3',
             'published_date' => '2024-03-21',
-            'description' => 'Test episode 1 description'
+            'description' => 'Test episode 1 description',
         ]);
 
         Episode::create([
@@ -45,7 +45,7 @@ class EpisodeControllerTest extends TestCase
             'file_size' => '4.7 MB',
             'format' => 'M4A',
             'published_date' => '2024-03-22',
-            'description' => 'Test episode 2 description'
+            'description' => 'Test episode 2 description',
         ]);
     }
 
@@ -75,7 +75,7 @@ class EpisodeControllerTest extends TestCase
         $response = $this->controller->apiIndex();
 
         $this->assertEquals(200, $response->getStatusCode());
-        
+
         $data = json_decode($response->getContent(), true);
         $this->assertArrayHasKey('episodes', $data);
         $this->assertArrayHasKey('total', $data);
@@ -87,7 +87,7 @@ class EpisodeControllerTest extends TestCase
         $response = $this->controller->show(1);
 
         $this->assertEquals(200, $response->getStatusCode());
-        
+
         $episode = json_decode($response->getContent(), true);
         $this->assertEquals(1, $episode['id']);
         $this->assertEquals('Test Episode 1', $episode['title']);
@@ -106,9 +106,8 @@ class EpisodeControllerTest extends TestCase
         $response = $this->get('/');
 
         $response->assertStatus(200);
-        $response->assertInertia(fn ($page) => 
-            $page->component('Home')
-                 ->has('episodes', 2)
+        $response->assertInertia(fn ($page) => $page->component('Home')
+            ->has('episodes', 2)
         );
     }
 
@@ -119,9 +118,9 @@ class EpisodeControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonStructure([
             'episodes' => [
-                '*' => ['id', 'title', 'filename', 'url']
+                '*' => ['id', 'title', 'filename', 'url'],
             ],
-            'total'
+            'total',
         ]);
     }
 

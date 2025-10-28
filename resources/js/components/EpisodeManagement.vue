@@ -35,11 +35,9 @@ const props = defineProps<Props>();
 const page = usePage();
 
 const episodes = ref<Episode[]>(props.episodes);
-const loading = ref(false);
 const showAddDialog = ref(false);
 const showEditDialog = ref(false);
 const editingEpisode = ref<Episode | null>(null);
-const deleteDialogOpen = ref<Record<number, boolean>>({});
 
 // Form data using Inertia Form
 const createForm = useForm({
@@ -110,7 +108,7 @@ const handleEditFileSelect = (event: Event) => {
 // Create episode
 const createEpisode = async () => {
     createForm.post('/dashboard/episodes', {
-        onSuccess: (page) => {
+        onSuccess: () => {
             toast.success('Episode created successfully!');
             showAddDialog.value = false;
             resetForm();
@@ -142,7 +140,7 @@ const updateEpisode = async () => {
     if (!editingEpisode.value) return;
     
     updateForm.put(`/dashboard/episodes/${editingEpisode.value.id}`, {
-        onSuccess: (page) => {
+        onSuccess: () => {
             toast.success('Episode updated successfully!');
             showEditDialog.value = false;
             editingEpisode.value = null;
