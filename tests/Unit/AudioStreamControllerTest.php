@@ -59,7 +59,7 @@ class AudioStreamControllerTest extends TestCase
             'description' => 'Test episode description',
             'published_date' => now(),
             'duration' => '5.0',
-            'file_size' => '1024',
+            'file_size' => '1 KB',
             'format' => 'mp3',
         ]);
     }

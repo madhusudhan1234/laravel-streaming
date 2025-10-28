@@ -30,6 +30,9 @@ tasks:
     - run: 'mkdir -p {{deploy_path}}/.dep'
   build:
     - run: uptime
+  deploy:assets:
+    - run: 'cd {{release_path}} && npm ci'
+    - run: 'cd {{release_path}} && npm run build'  
   
   deploy:
     - deploy:prepare
@@ -39,6 +42,7 @@ tasks:
     - artisan:route:cache
     - artisan:view:cache
     - artisan:migrate
+    - deploy:assets
     - deploy:symlink
     - deploy:unlock
     - deploy:cleanup

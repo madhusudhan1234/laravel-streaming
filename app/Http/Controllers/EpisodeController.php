@@ -2,12 +2,36 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreEpisodeRequest;
+use App\Http\Requests\UpdateEpisodeRequest;
 use App\Models\Episode;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class EpisodeController extends Controller
 {
+    /**
+     * Convert bytes to human readable format
+     */
+    private function formatFileSize($bytes)
+    {
+        if ($bytes == 0) {
+            return '0 B';
+        }
+
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $base = log($bytes, 1024);
+        $unitIndex = floor($base);
+        
+        // Ensure we don't exceed array bounds
+        $unitIndex = min($unitIndex, count($units) - 1);
+        
+        $size = round(pow(1024, $base - $unitIndex), 2);
+        
+        return $size . ' ' . $units[$unitIndex];
+    }
+
     /**
      * Display the home page with all episodes
      */
@@ -189,7 +213,7 @@ class EpisodeController extends Controller
                 'description' => $request->description,
                 'filename' => $filename,
                 'url' => '/audios/'.$filename,
-                'file_size' => $fileSize,
+                'file_size' => $this->formatFileSize($fileSize),
                 'format' => $format,
                 'published_date' => $request->published_date,
                 'duration' => $duration,
@@ -270,7 +294,7 @@ class EpisodeController extends Controller
 
                 $updateData['filename'] = $filename;
                 $updateData['url'] = '/audios/'.$filename;
-                $updateData['file_size'] = $fileSize;
+                $updateData['file_size'] = $this->formatFileSize($fileSize);
                 $updateData['format'] = $format;
                 $updateData['duration'] = $duration;
             }
