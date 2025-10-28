@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\AudioStreamController;
+use App\Models\Episode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -22,21 +23,16 @@ class AudioStreamControllerTest extends TestCase
         // Create test audio file
         $this->createTestAudioFile();
 
-        // Create test episodes data
-        $this->createTestEpisodesFile();
+        // Create test episodes in database
+        $this->createTestEpisodes();
     }
 
     protected function tearDown(): void
     {
-        // Clean up test files
-        $audioPath = public_path('audios/test-audio.mp3');
-        if (file_exists($audioPath)) {
-            unlink($audioPath);
-        }
-
-        $episodesPath = database_path('data/episodes.json');
-        if (file_exists($episodesPath)) {
-            unlink($episodesPath);
+        // Clean up test audio file
+        $testAudioPath = public_path('audios/test-audio.mp3');
+        if (file_exists($testAudioPath)) {
+            unlink($testAudioPath);
         }
 
         parent::tearDown();
@@ -53,26 +49,19 @@ class AudioStreamControllerTest extends TestCase
         file_put_contents(public_path('audios/test-audio.mp3'), 'test audio content');
     }
 
-    private function createTestEpisodesFile()
+    private function createTestEpisodes()
     {
-        $testData = [
-            'episodes' => [
-                [
-                    'id' => 1,
-                    'title' => 'Test Episode 1',
-                    'filename' => 'test-audio.mp3',
-                    'url' => '/audios/test-audio.mp3',
-                ],
-            ],
-        ];
-
-        // Create the directory if it doesn't exist
-        $episodesDir = database_path('data');
-        if (! is_dir($episodesDir)) {
-            mkdir($episodesDir, 0755, true);
-        }
-
-        file_put_contents(database_path('data/episodes.json'), json_encode($testData));
+        Episode::create([
+            'id' => 1,
+            'title' => 'Test Episode 1',
+            'filename' => 'test-audio.mp3',
+            'url' => '/audios/test-audio.mp3',
+            'description' => 'Test episode description',
+            'published_date' => now(),
+            'duration' => '5.0',
+            'file_size' => '1024',
+            'format' => 'mp3',
+        ]);
     }
 
     public function test_stream_returns_404_for_non_existent_file()
