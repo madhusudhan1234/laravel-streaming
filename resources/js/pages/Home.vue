@@ -124,7 +124,7 @@
                             <div
                                 class="flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-500"
                             >
-                                <span>{{ currentEpisode.duration }}</span>
+                                <span>{{ formatDuration(currentEpisode.duration) }}</span>
                                 <span>{{ currentEpisode.file_size }}</span>
                                 <span>{{
                                     currentEpisode.format?.toUpperCase() || 'MP3'
@@ -297,24 +297,38 @@ const props = defineProps<Props>();
 // Audio player composable
 const { audioState, progress, initAudio, play, pause, seekToPercentage } = useAudioPlayer();
 
+// Format duration from decimal minutes to MM:SS format
+const formatDuration = (durationInMinutes: number | string | null | undefined): string => {
+    // Convert string to number if needed
+    const duration = typeof durationInMinutes === 'string' ? parseFloat(durationInMinutes) : durationInMinutes;
+    
+    if (!duration || duration <= 0 || isNaN(duration)) {
+        return '0:00';
+    }
+    
+    const totalMinutes = Math.floor(duration);
+    const seconds = Math.round((duration - totalMinutes) * 60);
+    
+    // Handle case where seconds round to 60
+    if (seconds === 60) {
+        return `${totalMinutes + 1}:00`;
+    }
+    
+    return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
 // Computed properties
 const totalDuration = computed(() => {
-    const totalSeconds = props.episodes.reduce((total, episode) => {
-        // Parse duration string (e.g., "45:30" or "1:23:45")
-        if (!episode.duration) return total; // Skip if no duration
+    const totalMinutes = props.episodes.reduce((total, episode) => {
+        // Duration is now stored as decimal minutes
+        if (!episode.duration) return total;
         
-        const parts = episode.duration.split(':').map(Number);
-        let seconds = 0;
-        if (parts.length === 2) {
-            seconds = parts[0] * 60 + parts[1]; // MM:SS
-        } else if (parts.length === 3) {
-            seconds = parts[0] * 3600 + parts[1] * 60 + parts[2]; // HH:MM:SS
-        }
-        return total + seconds;
+        const duration = typeof episode.duration === 'string' ? parseFloat(episode.duration) : episode.duration;
+        return total + (duration || 0);
     }, 0);
 
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = Math.floor(totalMinutes % 60);
 
     if (hours > 0) {
         return `${hours}h ${minutes}m`;

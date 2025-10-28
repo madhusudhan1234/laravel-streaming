@@ -25,5 +25,14 @@ Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+// Episode management routes (protected by auth middleware)
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard/episodes', [EpisodeController::class, 'dashboard'])->name('episodes.dashboard');
+    Route::post('/dashboard/episodes', [EpisodeController::class, 'store'])->name('episodes.store');
+    Route::get('/dashboard/episodes/{episode}/edit', [EpisodeController::class, 'edit'])->name('episodes.edit');
+    Route::put('/dashboard/episodes/{episode}', [EpisodeController::class, 'update'])->name('episodes.update');
+    Route::delete('/dashboard/episodes/{episode}', [EpisodeController::class, 'destroy'])->name('episodes.destroy');
+});
+
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

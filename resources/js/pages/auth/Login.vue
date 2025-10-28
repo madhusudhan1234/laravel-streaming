@@ -101,8 +101,7 @@ defineProps<{
             </div>
 
             <div class="text-center text-sm text-muted-foreground">
-                Don't have an account?
-                <TextLink :href="register()" :tabindex="5">Sign up</TextLink>
+                Don't have an account? Contact an administrator to create one for you.
             </div>
         </Form>
     </AuthBase>

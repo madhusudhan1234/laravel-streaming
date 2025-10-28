@@ -13,6 +13,7 @@ config:
 
 hosts:
   production:
+    hostname: 'audio.lifeandmessage.com'
     remote_user: deployer
     deploy_path: '/var/www/audio.lifeandmessage.com'
     port: 22
@@ -29,6 +30,7 @@ tasks:
     - run: 'mkdir -p {{deploy_path}}/.dep'
   build:
     - run: uptime
+  
   deploy:
     - deploy:prepare
     - deploy:vendors
