@@ -285,8 +285,170 @@ dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =
 dashboard.form = dashboardForm
 
 /**
-* @see \App\Http\Controllers\Auth\RegisteredUserController::register
-* @see app/Http/Controllers/Auth/RegisteredUserController.php:21
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/dashboard/episodes'
+*/
+export const episodesDashboard = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: episodesDashboard.url(options),
+    method: 'get',
+})
+
+episodesDashboard.definition = {
+    methods: ["get","head"],
+    url: '/dashboard/episodes',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/dashboard/episodes'
+*/
+episodesDashboard.url = (options?: RouteQueryOptions) => {
+    return episodesDashboard.definition.url + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/dashboard/episodes'
+*/
+episodesDashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: episodesDashboard.url(options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/dashboard/episodes'
+*/
+episodesDashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: episodesDashboard.url(options),
+    method: 'head',
+})
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/dashboard/episodes'
+*/
+const episodesDashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: episodesDashboard.url(options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/dashboard/episodes'
+*/
+episodesDashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: episodesDashboard.url(options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/dashboard/episodes'
+*/
+episodesDashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: episodesDashboard.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+episodesDashboard.form = episodesDashboardForm
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/episode-management'
+*/
+export const episodeManagement = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: episodeManagement.url(options),
+    method: 'get',
+})
+
+episodeManagement.definition = {
+    methods: ["get","head"],
+    url: '/episode-management',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/episode-management'
+*/
+episodeManagement.url = (options?: RouteQueryOptions) => {
+    return episodeManagement.definition.url + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/episode-management'
+*/
+episodeManagement.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: episodeManagement.url(options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/episode-management'
+*/
+episodeManagement.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: episodeManagement.url(options),
+    method: 'head',
+})
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/episode-management'
+*/
+const episodeManagementForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: episodeManagement.url(options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/episode-management'
+*/
+episodeManagementForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: episodeManagement.url(options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\EpisodeController::dashboard
+* @see app/Http/Controllers/EpisodeController.php
+* @route '/episode-management'
+*/
+episodeManagementForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: episodeManagement.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+episodeManagement.form = episodeManagementForm
+
+/**
+* @see \App\Http\Controllers\Auth\RegisteredUserController::create
+* @see app/Http/Controllers/Auth/RegisteredUserController.php:20
 * @route '/register'
 */
 export const register = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({

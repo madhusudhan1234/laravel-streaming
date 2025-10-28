@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Episode;
+
 class EmbedController extends Controller
 {
     /**
@@ -42,22 +44,12 @@ class EmbedController extends Controller
     }
 
     /**
-     * Get episode data from JSON file
+     * Get episode data from database
      */
     private function getEpisode($id)
     {
         try {
-            $episodesPath = database_path('data/episodes.json');
-
-            if (! file_exists($episodesPath)) {
-                return null;
-            }
-
-            $episodesJson = file_get_contents($episodesPath);
-            $episodesData = json_decode($episodesJson, true);
-            $episodes = $episodesData['episodes'] ?? [];
-
-            return collect($episodes)->firstWhere('id', (int) $id);
+            return Episode::find($id);
         } catch (\Exception $e) {
             return null;
         }
@@ -68,7 +60,7 @@ class EmbedController extends Controller
      */
     private function buildEmbedCode($embedUrl, $episode)
     {
-        $title = htmlspecialchars($episode['title']);
+        $title = htmlspecialchars($episode->title);
 
         return sprintf(
             '<iframe src="%s" width="100%%" height="120" frameborder="0" title="%s" allow="autoplay"></iframe>',

@@ -8,7 +8,7 @@
                 {{ episode.title }}
             </h3>
             <p class="flex items-center gap-2 text-sm text-gray-600">
-                <span>{{ episode.duration }}</span>
+                <span>{{ formatDuration(episode.duration) }}</span>
                 <span>•</span>
                 <span>{{ formatDate(episode.published_date) }}</span>
             </p>
@@ -204,7 +204,7 @@ interface Episode {
     title: string;
     filename: string;
     url: string;
-    duration: string;
+    duration: number;
     published_date: string;
     description?: string;
 }
@@ -219,6 +219,26 @@ const props = withDefaults(defineProps<Props>(), {
     autoplay: false,
     fullSiteUrl: '/',
 });
+
+// Format duration from decimal minutes to MM:SS format
+const formatDuration = (durationInMinutes: number | string | null | undefined): string => {
+    // Convert string to number if needed
+    const duration = typeof durationInMinutes === 'string' ? parseFloat(durationInMinutes) : durationInMinutes;
+    
+    if (!duration || duration <= 0 || isNaN(duration)) {
+        return '0:00';
+    }
+    
+    const totalMinutes = Math.floor(duration);
+    const seconds = Math.round((duration - totalMinutes) * 60);
+    
+    // Handle case where seconds round to 60
+    if (seconds === 60) {
+        return `${totalMinutes + 1}:00`;
+    }
+    
+    return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
+};
 
 // Global audio manager
 const { registerPlayer } = useGlobalAudioManager();

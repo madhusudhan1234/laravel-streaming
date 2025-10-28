@@ -91,7 +91,7 @@
                                                     d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
                                                 />
                                             </svg>
-                                            {{ episode.duration }}
+                                            {{ formatDuration(episode.duration) }}
                                         </span>
                                         <span
                                             class="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1"
@@ -240,7 +240,7 @@
                                     ? formatTime(currentTime)
                                     : '0:00'
                             }}</span>
-                            <span>{{ episode.duration }}</span>
+                            <span>{{ formatDuration(episode.duration) }}</span>
                         </div>
                     </div>
                 </div>
@@ -529,6 +529,25 @@ const formatDate = (dateString: string): string => {
     });
 };
 
+// Format duration from decimal minutes to MM:SS format
+const formatDuration = (durationInMinutes: number | string | null | undefined): string => {
+    // Convert string to number if needed
+    const duration = typeof durationInMinutes === 'string' ? parseFloat(durationInMinutes) : durationInMinutes;
+    
+    if (!duration || duration <= 0 || isNaN(duration)) {
+        return '0:00';
+    }
+    
+    const totalMinutes = Math.floor(duration);
+    const seconds = Math.round((duration - totalMinutes) * 60);
+    
+    // Handle case where seconds round to 60
+    if (seconds === 60) {
+        return `${totalMinutes + 1}:00`;
+    }
+    
+    return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
+};
 const formatTime = (seconds: number): string => {
     if (isNaN(seconds) || seconds < 0) return '0:00';
 

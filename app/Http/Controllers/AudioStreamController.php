@@ -137,24 +137,14 @@ class AudioStreamController extends Controller
     public function getEpisodeStreamUrl($id)
     {
         try {
-            $episodesPath = database_path('data/episodes.json');
-
-            if (! file_exists($episodesPath)) {
-                return response()->json(['error' => 'Episodes data not found'], 404);
-            }
-
-            $episodesJson = file_get_contents($episodesPath);
-            $episodesData = json_decode($episodesJson, true);
-            $episodes = $episodesData['episodes'] ?? [];
-
-            $episode = collect($episodes)->firstWhere('id', (int) $id);
+            $episode = \App\Models\Episode::find($id);
 
             if (! $episode) {
                 return response()->json(['error' => 'Episode not found'], 404);
             }
 
             // Generate streaming URL
-            $streamUrl = url("/api/stream/{$episode['filename']}");
+            $streamUrl = url("/api/stream/{$episode->filename}");
 
             return response()->json([
                 'episode' => $episode,
