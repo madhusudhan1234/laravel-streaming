@@ -138,4 +138,27 @@ class EpisodeControllerTest extends TestCase
 
         $response->assertStatus(404);
     }
+
+    public function test_episode_model_r2_methods()
+    {
+        // Test local episode
+        $localEpisode = Episode::find(1);
+        $this->assertFalse($localEpisode->isStoredOnR2());
+        $this->assertEquals('/audios/test-episode-1.mp3', $localEpisode->audio_url);
+
+        // Test R2 episode
+        $r2Episode = Episode::create([
+            'title' => 'R2 Test Episode',
+            'filename' => 'r2-test.mp3',
+            'url' => 'https://r2.example.com/episodes/r2-test.mp3',
+            'duration' => '02:30',
+            'file_size' => '3.5 MB',
+            'format' => 'MP3',
+            'published_date' => '2024-03-23',
+            'description' => 'R2 test episode',
+        ]);
+
+        $this->assertTrue($r2Episode->isStoredOnR2());
+        $this->assertEquals('https://r2.example.com/episodes/r2-test.mp3', $r2Episode->audio_url);
+    }
 }
