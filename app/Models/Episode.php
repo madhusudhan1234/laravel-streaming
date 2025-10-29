@@ -6,15 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Episode extends Model
 {
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'title',
         'filename',
         'url',
+        'storage_disk',
         'duration',
         'file_size',
         'format',
@@ -22,12 +18,17 @@ class Episode extends Model
         'description',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'published_date' => 'date',
     ];
+
+    public function getAudioUrlAttribute(): string
+    {
+        return $this->url ?? "/audios/{$this->filename}";
+    }
+
+    public function isStoredOnR2(): bool
+    {
+        return str_starts_with($this->url ?? '', 'http');
+    }
 }

@@ -15,12 +15,13 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->string('filename');
+            $table->string('storage_disk')->default('r2');
             $table->string('url');
-            $table->string('duration');
+            $table->string('duration')->nullable();
             $table->string('file_size');
             $table->string('format');
             $table->date('published_date');
-            $table->text('description');
+            $table->text('description')->nullable();
             $table->timestamps();
         });
     }
