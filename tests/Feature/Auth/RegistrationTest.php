@@ -14,7 +14,7 @@ class RegistrationTest extends TestCase
     {
         // Create and authenticate a user since registration requires auth
         $user = User::factory()->create();
-        
+
         $response = $this->actingAs($user)->get(route('register'));
 
         $response->assertStatus(200);
@@ -24,7 +24,7 @@ class RegistrationTest extends TestCase
     {
         // Create and authenticate a user since registration requires auth
         $user = User::factory()->create();
-        
+
         $response = $this->actingAs($user)->post(route('register.store'), [
             'name' => 'Test User',
             'email' => 'test@example.com',
@@ -37,7 +37,7 @@ class RegistrationTest extends TestCase
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
-        
+
         $response->assertRedirect(route('dashboard', absolute: false));
     }
 }

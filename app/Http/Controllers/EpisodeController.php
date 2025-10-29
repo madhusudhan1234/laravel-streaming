@@ -22,13 +22,13 @@ class EpisodeController extends Controller
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
         $base = log($bytes, 1024);
         $unitIndex = floor($base);
-        
+
         // Ensure we don't exceed array bounds
         $unitIndex = min($unitIndex, count($units) - 1);
-        
+
         $size = round(pow(1024, $base - $unitIndex), 2);
-        
-        return $size . ' ' . $units[$unitIndex];
+
+        return $size.' '.$units[$unitIndex];
     }
 
     /**
@@ -162,14 +162,14 @@ class EpisodeController extends Controller
             ]);
 
             // Determine if R2 is configured (prefer R2 if available, fallback to local)
-            $useR2 = config('filesystems.default') === 'r2' || 
+            $useR2 = config('filesystems.default') === 'r2' ||
                      (config('filesystems.disks.r2.key') && config('filesystems.disks.r2.bucket'));
 
             Log::info('Storage method determined', [
                 'use_r2' => $useR2,
                 'filesystem_default' => config('filesystems.default'),
-                'r2_key_configured' => !empty(config('filesystems.disks.r2.key')),
-                'r2_bucket_configured' => !empty(config('filesystems.disks.r2.bucket')),
+                'r2_key_configured' => ! empty(config('filesystems.disks.r2.key')),
+                'r2_bucket_configured' => ! empty(config('filesystems.disks.r2.bucket')),
             ]);
 
             // Upload file and get URL
@@ -178,12 +178,12 @@ class EpisodeController extends Controller
                 $r2Config = config('filesystems.disks.r2');
                 if (empty($r2Config['key']) || empty($r2Config['secret']) || empty($r2Config['bucket']) || empty($r2Config['endpoint'])) {
                     Log::error('R2 configuration incomplete', [
-                        'key_present' => !empty($r2Config['key']),
-                        'secret_present' => !empty($r2Config['secret']),
-                        'bucket_present' => !empty($r2Config['bucket']),
-                        'endpoint_present' => !empty($r2Config['endpoint']),
+                        'key_present' => ! empty($r2Config['key']),
+                        'secret_present' => ! empty($r2Config['secret']),
+                        'bucket_present' => ! empty($r2Config['bucket']),
+                        'endpoint_present' => ! empty($r2Config['endpoint']),
                     ]);
-                    
+
                     return redirect()->back()->withErrors(['error' => 'Cloud storage configuration is incomplete']);
                 }
 
@@ -198,8 +198,8 @@ class EpisodeController extends Controller
 
                     // Upload to R2
                     $uploadSuccess = Storage::disk('r2')->putFileAs('episodes', $audioFile, $filename, 'public');
-                    
-                    if (!$uploadSuccess) {
+
+                    if (! $uploadSuccess) {
                         Log::error('R2 upload returned false', [
                             'filename' => $filename,
                             'storage_path' => $storagePath,
@@ -210,7 +210,7 @@ class EpisodeController extends Controller
 
                     // Generate full R2 URL
                     $fileUrl = Storage::disk('r2')->url($storagePath);
-                    
+
                     Log::info('R2 upload successful', [
                         'filename' => $filename,
                         'file_url' => $fileUrl,
@@ -224,7 +224,7 @@ class EpisodeController extends Controller
                         'trace' => $e->getTraceAsString(),
                     ]);
 
-                    return redirect()->back()->withErrors(['error' => 'Failed to upload audio file to cloud storage: ' . $e->getMessage()]);
+                    return redirect()->back()->withErrors(['error' => 'Failed to upload audio file to cloud storage: '.$e->getMessage()]);
                 }
             } else {
                 // Fallback to local storage
@@ -234,8 +234,8 @@ class EpisodeController extends Controller
                 }
 
                 $uploadSuccess = $audioFile->move($audioDir, $filename);
-                
-                if (!$uploadSuccess) {
+
+                if (! $uploadSuccess) {
                     Log::error('Failed to upload file to local storage', [
                         'filename' => $filename,
                         'destination' => $audioDir,
@@ -246,7 +246,7 @@ class EpisodeController extends Controller
 
                 // Store relative path for local files
                 $fileUrl = '/audios/'.$filename;
-                
+
                 Log::info('Local upload successful', [
                     'filename' => $filename,
                     'file_url' => $fileUrl,
@@ -370,14 +370,14 @@ class EpisodeController extends Controller
                 $storagePath = 'episodes/'.$filename;
 
                 // Determine if R2 is configured (prefer R2 if available, fallback to local)
-                $useR2 = config('filesystems.default') === 'r2' || 
+                $useR2 = config('filesystems.default') === 'r2' ||
                          (config('filesystems.disks.r2.key') && config('filesystems.disks.r2.bucket'));
 
                 Log::info('Storage method determined for update', [
                     'use_r2' => $useR2,
                     'filesystem_default' => config('filesystems.default'),
-                    'r2_key_configured' => !empty(config('filesystems.disks.r2.key')),
-                    'r2_bucket_configured' => !empty(config('filesystems.disks.r2.bucket')),
+                    'r2_key_configured' => ! empty(config('filesystems.disks.r2.key')),
+                    'r2_bucket_configured' => ! empty(config('filesystems.disks.r2.bucket')),
                 ]);
 
                 // Upload file and get URL
@@ -386,15 +386,15 @@ class EpisodeController extends Controller
                     $r2Config = config('filesystems.disks.r2');
                     if (empty($r2Config['key']) || empty($r2Config['secret']) || empty($r2Config['bucket']) || empty($r2Config['endpoint'])) {
                         Log::error('R2 configuration incomplete for update', [
-                            'key_present' => !empty($r2Config['key']),
-                            'secret_present' => !empty($r2Config['secret']),
-                            'bucket_present' => !empty($r2Config['bucket']),
-                            'endpoint_present' => !empty($r2Config['endpoint']),
-                            'config' => array_map(function($value) {
-                                return is_string($value) && strlen($value) > 10 ? substr($value, 0, 10) . '...' : $value;
-                            }, $r2Config)
+                            'key_present' => ! empty($r2Config['key']),
+                            'secret_present' => ! empty($r2Config['secret']),
+                            'bucket_present' => ! empty($r2Config['bucket']),
+                            'endpoint_present' => ! empty($r2Config['endpoint']),
+                            'config' => array_map(function ($value) {
+                                return is_string($value) && strlen($value) > 10 ? substr($value, 0, 10).'...' : $value;
+                            }, $r2Config),
                         ]);
-                        
+
                         return redirect()->back()->withErrors(['error' => 'Cloud storage configuration is incomplete']);
                     }
 
@@ -410,14 +410,14 @@ class EpisodeController extends Controller
 
                         // Upload to R2
                         $uploadSuccess = Storage::disk('r2')->putFileAs('episodes', $audioFile, $filename, 'public');
-                        
-                        if (!$uploadSuccess) {
+
+                        if (! $uploadSuccess) {
                             Log::error('R2 upload returned false for update', [
                                 'filename' => $filename,
                                 'storage_path' => $storagePath,
-                                'disk_config' => array_map(function($value) {
-                                    return is_string($value) && strlen($value) > 10 ? substr($value, 0, 10) . '...' : $value;
-                                }, $r2Config)
+                                'disk_config' => array_map(function ($value) {
+                                    return is_string($value) && strlen($value) > 10 ? substr($value, 0, 10).'...' : $value;
+                                }, $r2Config),
                             ]);
 
                             return redirect()->back()->withErrors(['error' => 'Failed to upload audio file to cloud storage']);
@@ -430,7 +430,7 @@ class EpisodeController extends Controller
 
                         // Generate full R2 URL
                         $fileUrl = Storage::disk('r2')->url($storagePath);
-                        
+
                         Log::info('R2 upload successful for update', [
                             'filename' => $filename,
                             'file_url' => $fileUrl,
@@ -448,7 +448,7 @@ class EpisodeController extends Controller
                             'trace' => $e->getTraceAsString(),
                         ]);
 
-                        return redirect()->back()->withErrors(['error' => 'Failed to upload audio file to cloud storage: ' . $e->getMessage()]);
+                        return redirect()->back()->withErrors(['error' => 'Failed to upload audio file to cloud storage: '.$e->getMessage()]);
                     }
                 } else {
                     // Fallback to local storage
@@ -458,8 +458,8 @@ class EpisodeController extends Controller
                     }
 
                     $uploadSuccess = $audioFile->move($audioDir, $filename);
-                    
-                    if (!$uploadSuccess) {
+
+                    if (! $uploadSuccess) {
                         return redirect()->back()->withErrors(['error' => 'Failed to upload audio file']);
                     }
 
