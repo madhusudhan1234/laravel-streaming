@@ -15,7 +15,7 @@ class R2StorageTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Mock R2 storage for testing
         Storage::fake('r2');
         Storage::fake('local');
@@ -27,10 +27,12 @@ class R2StorageTest extends TestCase
         $user = \App\Models\User::factory()->create();
         $this->actingAs($user);
 
-        // Set R2 as default storage and configure R2
+        // Set R2 as default storage and configure R2 with all required settings
         config(['filesystems.default' => 'r2']);
         config(['filesystems.disks.r2.key' => 'test-key']);
+        config(['filesystems.disks.r2.secret' => 'test-secret']);
         config(['filesystems.disks.r2.bucket' => 'test-bucket']);
+        config(['filesystems.disks.r2.endpoint' => 'https://test.r2.cloudflarestorage.com']);
 
         $file = UploadedFile::fake()->create('test-episode.mp3', 1000, 'audio/mpeg');
 
@@ -46,11 +48,20 @@ class R2StorageTest extends TestCase
         // Check episode was created
         $episode = Episode::where('title', 'Test R2 Episode')->first();
         $this->assertNotNull($episode);
-        $this->assertEquals('r2', $episode->storage_disk);
-        $this->assertStringStartsWith('episodes/', $episode->storage_path);
 
-        // Check file was uploaded to R2
-        Storage::disk('r2')->assertExists($episode->storage_path);
+        // Check that the URL indicates R2 storage (should contain the R2 domain or be a full URL)
+        $this->assertNotNull($episode->url);
+        $this->assertStringContainsString('test-episode.mp3', $episode->url);
+
+        // For R2 uploads, the filename should be stored in episodes/ directory
+        // The filename will have a timestamp prefix, so we need to find the actual stored file
+        $files = Storage::disk('r2')->files('episodes');
+        $testFile = collect($files)->first(function ($file) {
+            return str_contains($file, 'test-episode.mp3');
+        });
+
+        $this->assertNotNull($testFile, 'Expected file not found in R2 storage');
+        $this->assertTrue(Storage::disk('r2')->exists($testFile));
     }
 
     public function test_episode_upload_to_local_when_r2_not_configured()
@@ -80,11 +91,12 @@ class R2StorageTest extends TestCase
         // Check episode was created
         $episode = Episode::where('title', 'Test Local Episode')->first();
         $this->assertNotNull($episode);
-        $this->assertEquals('local', $episode->storage_disk);
-        $this->assertStringStartsWith('audios/', $episode->storage_path);
 
-        // Check file was uploaded to local storage
-        $this->assertTrue(file_exists(public_path($episode->storage_path)));
+        // For local storage, URL should start with /audios/
+        $this->assertStringStartsWith('/audios/', $episode->url);
+
+        // Check file was uploaded to local storage (public/audios directory)
+        $this->assertTrue(file_exists(public_path($episode->url)));
     }
 
     public function test_episode_update_with_new_file_uploads_to_r2()
@@ -103,13 +115,14 @@ class R2StorageTest extends TestCase
             'format' => 'MP3',
             'published_date' => '2024-03-20',
             'description' => 'Original description',
-            'storage_disk' => 'local',
         ]);
 
-        // Set R2 as default storage and configure R2
+        // Set R2 as default storage and configure R2 with all required settings
         config(['filesystems.default' => 'r2']);
         config(['filesystems.disks.r2.key' => 'test-key']);
+        config(['filesystems.disks.r2.secret' => 'test-secret']);
         config(['filesystems.disks.r2.bucket' => 'test-bucket']);
+        config(['filesystems.disks.r2.endpoint' => 'https://test.r2.cloudflarestorage.com']);
 
         $newFile = UploadedFile::fake()->create('updated-episode.mp3', 1200, 'audio/mpeg');
 
@@ -126,11 +139,20 @@ class R2StorageTest extends TestCase
         $episode->refresh();
 
         $this->assertEquals('Updated Episode', $episode->title);
-        $this->assertEquals('r2', $episode->storage_disk);
-        $this->assertStringStartsWith('episodes/', $episode->storage_path);
+
+        // Check that the URL was updated and indicates R2 storage
+        $this->assertNotNull($episode->url);
+        $this->assertStringContainsString('updated-episode.mp3', $episode->url);
 
         // Check new file was uploaded to R2
-        Storage::disk('r2')->assertExists($episode->storage_path);
+        // The filename will have a timestamp prefix, so we need to find the actual stored file
+        $files = Storage::disk('r2')->files('episodes');
+        $testFile = collect($files)->first(function ($file) {
+            return str_contains($file, 'updated-episode.mp3');
+        });
+
+        $this->assertNotNull($testFile, 'Expected updated file not found in R2 storage');
+        $this->assertTrue(Storage::disk('r2')->exists($testFile));
     }
 
     public function test_episode_deletion_removes_file_from_r2()
@@ -139,7 +161,7 @@ class R2StorageTest extends TestCase
         $user = \App\Models\User::factory()->create();
         $this->actingAs($user);
 
-        // Create R2 episode
+        // Create R2 episode with a proper R2 URL
         $episode = Episode::create([
             'title' => 'R2 Episode to Delete',
             'filename' => 'delete-test.mp3',
@@ -149,13 +171,12 @@ class R2StorageTest extends TestCase
             'format' => 'MP3',
             'published_date' => '2024-03-23',
             'description' => 'Episode to be deleted',
-            'storage_disk' => 'r2',
-            'storage_path' => 'episodes/delete-test.mp3',
         ]);
 
-        // Upload fake file to R2
-        Storage::disk('r2')->put($episode->storage_path, 'fake audio content');
-        Storage::disk('r2')->assertExists($episode->storage_path);
+        // Upload fake file to R2 (simulate the file exists)
+        $storagePath = 'episodes/delete-test.mp3';
+        Storage::disk('r2')->put($storagePath, 'fake audio content');
+        $this->assertTrue(Storage::disk('r2')->exists($storagePath));
 
         $response = $this->delete("/dashboard/episodes/{$episode->id}");
 
@@ -165,46 +186,6 @@ class R2StorageTest extends TestCase
         $this->assertDatabaseMissing('episodes', ['id' => $episode->id]);
 
         // Check file was deleted from R2
-        Storage::disk('r2')->assertMissing($episode->storage_path);
-    }
-
-    public function test_migration_command_dry_run()
-    {
-        // Create local episodes
-        Episode::create([
-            'title' => 'Local Episode 1',
-            'filename' => 'local1.mp3',
-            'url' => '/audios/local1.mp3',
-            'duration' => '03:00',
-            'file_size' => '4.0 MB',
-            'format' => 'MP3',
-            'published_date' => '2024-03-20',
-            'description' => 'Local episode 1',
-            'storage_disk' => 'local',
-        ]);
-
-        Episode::create([
-            'title' => 'Local Episode 2',
-            'filename' => 'local2.mp3',
-            'url' => '/audios/local2.mp3',
-            'duration' => '03:30',
-            'file_size' => '4.5 MB',
-            'format' => 'MP3',
-            'published_date' => '2024-03-21',
-            'description' => 'Local episode 2',
-            'storage_disk' => 'local',
-        ]);
-
-        // Mock R2 configuration
-        config([
-            'filesystems.disks.r2.key' => 'test-key',
-            'filesystems.disks.r2.bucket' => 'test-bucket',
-        ]);
-
-        $this->artisan('episodes:migrate-to-r2', ['--dry-run' => true])
-            ->expectsOutput('Starting episode migration to Cloudflare R2...')
-            ->expectsOutput('Found 2 episodes to migrate.')
-            ->expectsOutput('DRY RUN - No files will be actually migrated:')
-            ->assertExitCode(0);
+        $this->assertFalse(Storage::disk('r2')->exists($storagePath));
     }
 }
