@@ -13,7 +13,7 @@
   body {
     margin: 0;
     padding: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #667eea;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: #333;
     min-height: 100vh;
@@ -21,32 +21,25 @@
 
   .player {
     background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
     border-radius: 0;
     padding: 8px 6px;
     width: 100%;
     height: 120px;
-    box-shadow: 
-      0 20px 40px rgba(0, 0, 0, 0.1),
-      0 8px 16px rgba(0, 0, 0, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-top: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: sticky;
     top: 0;
     z-index: 1000;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    will-change: transform;
   }
 
   .player:hover {
-    transform: translateY(-2px);
-    box-shadow: 
-      0 25px 50px rgba(0, 0, 0, 0.15),
-      0 12px 24px rgba(0, 0, 0, 0.12),
-      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
   }
 
   .player-header {
@@ -61,43 +54,20 @@
     height: 48px;
     border-radius: 50%;
     border: none;
-    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    background: #ff6b35;
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     flex-shrink: 0;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 
-      0 8px 16px rgba(255, 107, 53, 0.3),
-      0 4px 8px rgba(255, 107, 53, 0.2);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .play-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
-    border-radius: 50%;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+    will-change: transform;
   }
 
   .play-btn:hover {
     transform: scale(1.05);
-    box-shadow: 
-      0 12px 24px rgba(255, 107, 53, 0.4),
-      0 6px 12px rgba(255, 107, 53, 0.3);
-  }
-
-  .play-btn:hover::before {
-    opacity: 1;
   }
 
   .play-btn:active {
@@ -169,34 +139,29 @@
     position: relative;
     border-radius: 6px;
     padding: 0;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    transition: all 0.3s ease;
+    background: #f8f9fa;
     width: 100%;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+    will-change: contents;
   }
 
   .waveform:hover {
-    background: linear-gradient(135deg, #f1f3f4 0%, #e1e5e9 100%);
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.08);
+    background: #f1f3f4;
   }
 
   .bar {
-    width: 2px;
-    background: linear-gradient(to top, #cbd5e0 0%, #e2e8f0 100%);
+    width: 3px;
+    background: #cbd5e0;
     border-radius: 2px;
     height: 30%;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     opacity: 0.8;
     cursor: pointer;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     flex-shrink: 0;
+    will-change: background-color, height;
   }
 
   .bar:hover {
     opacity: 1;
-    transform: scaleY(1.2) scaleX(1.1);
-    background: linear-gradient(to top, #ff6b35 0%, #ff8c42 100%);
-    box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+    background: #ff6b35;
   }
 
   .bar.active { 
@@ -426,7 +391,7 @@
 
     <div class="error-message" id="errorMessage"></div>
 
-    <audio id="audio" preload="metadata"></audio>
+    <audio id="audio" preload="none"></audio>
   </div>
 
 <script>
@@ -447,46 +412,33 @@
   let isDragging = false;
   let isLoading = false;
   let bars = [];
+  let animationFrameId = null;
+  let lastUpdateTime = 0;
+  const UPDATE_THROTTLE = 100; // Update every 100ms instead of every frame
 
-  // Generate waveform bars with dense, realistic pattern
-  const totalBars = 180;
+  // Generate optimized waveform bars with pre-calculated heights
+  const totalBars = 60;
+  const preCalculatedHeights = [
+    45, 65, 35, 75, 25, 85, 55, 40, 70, 30, 80, 50, 60, 35, 75, 45, 65, 25, 85, 55,
+    40, 70, 30, 80, 50, 60, 35, 75, 45, 65, 25, 85, 55, 40, 70, 30, 80, 50, 60, 35,
+    75, 45, 65, 25, 85, 55, 40, 70, 30, 80, 50, 60, 35, 75, 45, 65, 25, 85, 55, 40
+  ];
+  
   function generateWaveform() {
-    waveform.innerHTML = '';
+    const fragment = document.createDocumentFragment();
     bars = [];
     
     for (let i = 0; i < totalBars; i++) {
       const bar = document.createElement('div');
       bar.className = 'bar';
       bar.setAttribute('data-index', i);
-      
-      // Create detailed waveform with main peaks and smaller waves
-      const position = i / totalBars;
-      
-      // Main wave pattern with multiple frequencies
-      const mainWave = Math.sin(position * Math.PI * 6) * 25;
-      const secondaryWave = Math.sin(position * Math.PI * 12) * 15;
-      const detailWave = Math.sin(position * Math.PI * 24) * 8;
-      
-      // Add envelope for natural audio shape
-      const envelope = Math.sin(position * Math.PI) * 20;
-      
-      // Random variation for realism
-      const noise = (Math.random() - 0.5) * 12;
-      
-      // Combine all waves
-      const baseHeight = 25;
-      const combinedHeight = baseHeight + mainWave + secondaryWave + detailWave + envelope + noise;
-      
-      // Create alternating pattern - every 3rd bar is smaller for detail
-      const isDetailBar = i % 3 === 1;
-      const heightMultiplier = isDetailBar ? 0.4 : 1;
-      
-      const finalHeight = Math.max(8, Math.min(85, combinedHeight * heightMultiplier));
-      
-      bar.style.height = `${finalHeight}%`;
-      waveform.appendChild(bar);
+      bar.style.height = `${preCalculatedHeights[i]}%`;
+      fragment.appendChild(bar);
       bars.push(bar);
     }
+    
+    waveform.innerHTML = '';
+    waveform.appendChild(fragment);
   }
 
   // Improved time formatting
@@ -509,24 +461,33 @@
     totalTimeDisplay.textContent = formatTime(audio.duration || 0);
   }
 
-  // Update waveform progress with improved accuracy
+  // Optimized waveform update with throttling
   function updateWaveform() {
     if (!audio.duration) return;
+    
+    const now = Date.now();
+    if (now - lastUpdateTime < UPDATE_THROTTLE) return;
+    lastUpdateTime = now;
     
     const progress = audio.currentTime / audio.duration;
     const activeBarIndex = Math.floor(progress * totalBars);
     
-    bars.forEach((bar, index) => {
-      bar.classList.remove('active', 'playing');
-      
-      if (index < activeBarIndex) {
-        bar.classList.add('active');
-      } else if (index === activeBarIndex && !audio.paused) {
-        bar.classList.add('playing');
-      }
-    });
+    // Use requestAnimationFrame for smooth visual updates
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
     
-    updateTimeDisplays();
+    animationFrameId = requestAnimationFrame(() => {
+      bars.forEach((bar, index) => {
+        bar.classList.remove('active', 'playing');
+        
+        if (index < activeBarIndex) {
+          bar.classList.add('active');
+        } else if (index === activeBarIndex && !audio.paused) {
+          bar.classList.add('playing');
+        }
+      });
+      
+      updateTimeDisplays();
+    });
   }
 
   // Enhanced seeking with full-width precision
@@ -570,9 +531,23 @@
     }, 5000);
   }
 
+  // Lazy load audio on first interaction
+  let audioLoaded = false;
+  
+  async function loadAudioIfNeeded() {
+    if (!audioLoaded) {
+      audioLoaded = true;
+      // Set preload to metadata to load basic info but not the full audio
+      audio.preload = 'metadata';
+      audio.load(); // Force load the audio metadata
+    }
+  }
+
   // Event listeners
   playButton.addEventListener('click', async () => {
     try {
+      await loadAudioIfNeeded();
+      
       if (audio.paused) {
         setLoadingState(true);
         await audio.play();
@@ -606,9 +581,10 @@
     }
   });
 
-  // Enhanced waveform interaction
-  waveform.addEventListener('mousedown', (e) => {
+  // Enhanced waveform interaction with optimized event listeners
+  waveform.addEventListener('mousedown', async (e) => {
     e.preventDefault(); // Prevent text selection
+    await loadAudioIfNeeded();
     isDragging = true;
     seekToPosition(e.clientX);
     waveform.focus(); // Ensure keyboard events work
@@ -628,20 +604,20 @@
     } else {
       seekToPosition(e.clientX);
     }
-  });
+  }, { passive: false });
 
   waveform.addEventListener('mouseup', () => {
     isDragging = false;
-  });
+  }, { passive: true });
 
   waveform.addEventListener('mouseleave', () => {
     isDragging = false;
     progressIndicator.style.opacity = '0';
-  });
+  }, { passive: true });
 
   waveform.addEventListener('mouseenter', () => {
     progressIndicator.style.opacity = '1';
-  });
+  }, { passive: true });
 
   // Global mouse events for dragging
   document.addEventListener('mouseup', () => {
@@ -734,6 +710,7 @@
       }
       
       const data = await response.json();
+      console.log('Streaming data:', data.stream_url);
       
       if (data.stream_url) {
         streamingUrl = data.stream_url;
@@ -746,12 +723,24 @@
     } catch (error) {
       console.warn('Streaming not available, using direct URL:', error);
       audio.src = '{{ $episode['url'] }}';
+    } finally {
+      setLoadingState(false);
     }
   }
 
-  // Initialize everything
+  // Cleanup function
+  function cleanup() {
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+    }
+  }
+
+  // Initialize everything - set audio source immediately but keep lazy loading for metadata
   generateWaveform();
-  initializeStreaming();
+  initializeStreaming(); // Initialize the audio source immediately
+  
+  // Clean up on page unload
+  window.addEventListener('beforeunload', cleanup, { passive: true });
 </script>
 </body>
 </html>
