@@ -18,7 +18,7 @@ RUN apk add --no-cache \
     linux-headers
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+RUN docker-php-ext-install pdo_mysql mysqli mbstring exif pcntl bcmath gd
 
 # Copy custom PHP configuration
 COPY ./docker/php/php.ini /usr/local/etc/php/conf.d/uploads.ini

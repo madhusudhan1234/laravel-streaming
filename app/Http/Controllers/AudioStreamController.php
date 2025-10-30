@@ -14,11 +14,30 @@ class AudioStreamController extends Controller
     {
         // Validate filename to prevent directory traversal
         $filename = basename($filename);
-        $audioPath = public_path('audios/'.$filename);
+        
+        // Find episode by filename in database
+        $episode = \App\Models\Episode::where('filename', $filename)->first();
+        
+        if (!$episode) {
+            abort(404, 'Episode not found');
+        }
 
-        // Check if file exists
-        if (! file_exists($audioPath)) {
-            abort(404, 'Audio file not found');
+        // Get the episode URL (could be local or external)
+        $episodeUrl = $episode->url;
+        
+        // Handle external URLs (like Cloudflare R2)
+        if ($episode->isStoredOnR2()) {
+            // For external URLs, redirect to the actual URL
+            // This allows the CDN/external service to handle range requests
+            return redirect($episodeUrl, 302);
+        }
+
+        // Handle local files
+        $audioPath = $this->getLocalFilePath($episodeUrl);
+        
+        // Check if local file exists
+        if (!file_exists($audioPath)) {
+            abort(404, 'Audio file not found on local storage');
         }
 
         // Get file info
@@ -129,6 +148,25 @@ class AudioStreamController extends Controller
         ];
 
         return $mimeTypes[$extension] ?? 'audio/mpeg';
+    }
+
+    /**
+     * Convert episode URL to local file path
+     */
+    private function getLocalFilePath($episodeUrl)
+    {
+        // If URL starts with http/https, it's external
+        if (str_starts_with($episodeUrl, 'http')) {
+            return null;
+        }
+        
+        // Handle relative URLs like "/audios/filename.mp3"
+        if (str_starts_with($episodeUrl, '/audios/')) {
+            return public_path(ltrim($episodeUrl, '/'));
+        }
+        
+        // Handle direct filenames
+        return public_path('audios/' . basename($episodeUrl));
     }
 
     /**

@@ -13,6 +13,9 @@ Route::get('/', [EpisodeController::class, 'index'])->name('home');
 Route::get('/embed/{id}', [EmbedController::class, 'show'])->name('embed.show');
 Route::get('/api/embed/{id}/code', [EmbedController::class, 'generateEmbedCode'])->name('embed.code');
 
+// Embed testing page
+Route::get('/embed-test', [EmbedController::class, 'testPage'])->name('embed.test');
+
 // API routes for episodes
 Route::get('/api/episodes', [EpisodeController::class, 'apiIndex'])->name('api.episodes');
 Route::get('/api/episodes/{id}', [EpisodeController::class, 'show'])->name('api.episodes.show');

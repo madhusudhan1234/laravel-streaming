@@ -23,6 +23,18 @@ class EmbedController extends Controller
     }
 
     /**
+     * Show embed testing page with all episodes
+     */
+    public function testPage()
+    {
+        $episodes = Episode::orderBy('id')->get();
+
+        return view('embed-test', [
+            'episodes' => $episodes,
+        ]);
+    }
+
+    /**
      * Generate embed code for an episode
      */
     public function generateEmbedCode($id)
