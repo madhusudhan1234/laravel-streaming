@@ -2,7 +2,7 @@
 
 A modern audio streaming platform built with Laravel, Inertia.js, and Vue.js, featuring embeddable audio players and a clean, responsive interface.
 
-- [https://weekly.madhusudhansubedi.com.np](https://weekly.madhusudhansubedi.com.np)
+- [https://weekly.madhusudhansubedi.com.np](https://audio.lifeandmessage.com)
 - [https://madhusudhansubedi.com.np/weekly](https://madhusudhansubedi.com.np/weekly)
 
 ## 🎵 Project Overview
