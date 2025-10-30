@@ -529,24 +529,45 @@ const formatDate = (dateString: string): string => {
     });
 };
 
-// Format duration from decimal minutes to MM:SS format
-const formatDuration = (durationInMinutes: number | string | null | undefined): string => {
-    // Convert string to number if needed
-    const duration = typeof durationInMinutes === 'string' ? parseFloat(durationInMinutes) : durationInMinutes;
-    
-    if (!duration || duration <= 0 || isNaN(duration)) {
+// Format duration - handles both MM:SS string format and decimal minutes
+const formatDuration = (duration: number | string | null | undefined): string => {
+    if (!duration) {
         return '0:00';
     }
     
-    const totalMinutes = Math.floor(duration);
-    const seconds = Math.round((duration - totalMinutes) * 60);
-    
-    // Handle case where seconds round to 60
-    if (seconds === 60) {
-        return `${totalMinutes + 1}:00`;
+    // If it's already in MM:SS format (string), return as is
+    if (typeof duration === 'string') {
+        // Check if it matches MM:SS or M:SS format
+        if (/^\d{1,2}:\d{2}$/.test(duration)) {
+            return duration;
+        }
+        
+        // Try to parse as decimal minutes if it's a numeric string
+        const numericDuration = parseFloat(duration);
+        if (isNaN(numericDuration)) {
+            return '0:00';
+        }
+        duration = numericDuration;
     }
     
-    return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
+    // Handle numeric duration (decimal minutes)
+    if (typeof duration === 'number') {
+        if (duration <= 0 || isNaN(duration)) {
+            return '0:00';
+        }
+        
+        const totalMinutes = Math.floor(duration);
+        const seconds = Math.round((duration - totalMinutes) * 60);
+        
+        // Handle case where seconds round to 60
+        if (seconds === 60) {
+            return `${totalMinutes + 1}:00`;
+        }
+        
+        return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    return '0:00';
 };
 const formatTime = (seconds: number): string => {
     if (isNaN(seconds) || seconds < 0) return '0:00';
