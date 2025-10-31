@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ $episode['title'] }} - Tech Weekly</title>
 
+<!-- DNS prefetch and preconnect for external audio domain -->
+<link rel="dns-prefetch" href="//weekly.madhusudhansubedi.com.np">
+<link rel="preconnect" href="https://weekly.madhusudhansubedi.com.np" crossorigin>
+
+<!-- Preload the audio file for faster loading -->
+@if(str_starts_with($episode['url'], 'http'))
+<link rel="preload" href="{{ $episode['url'] }}" as="audio" type="audio/{{ strtolower($episode['format'] ?? 'mp3') }}">
+@endif
+
 <style>
   * {
     box-sizing: border-box;
@@ -391,7 +400,7 @@
 
     <div class="error-message" id="errorMessage"></div>
 
-    <audio id="audio" preload="none"></audio>
+    <audio id="audio" preload="metadata" src="@if(str_starts_with($episode['url'], 'http')){{ $episode['url'] }}@else/api/stream/{{ $episode['filename'] }}@endif"></audio>
   </div>
 
 <script>
@@ -531,25 +540,47 @@
     }, 5000);
   }
 
-  // Lazy load audio on first interaction
-  let audioLoaded = false;
-  
+  // Enhanced audio loading with timeout and better error handling
   async function loadAudioIfNeeded() {
-    if (!audioLoaded) {
-      audioLoaded = true;
-      // Set preload to metadata to load basic info but not the full audio
-      audio.preload = 'metadata';
-      audio.load(); // Force load the audio metadata
+    // Audio is already loaded with metadata, just ensure it's ready
+    if (audio.readyState < 1) {
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+          audio.removeEventListener('error', onError);
+          reject(new Error('Audio loading timeout - external server may be slow'));
+        }, 15000); // 15 second timeout for external URLs
+
+        const onLoadedMetadata = () => {
+          clearTimeout(timeout);
+          audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+          audio.removeEventListener('error', onError);
+          resolve();
+        };
+
+        const onError = (e) => {
+          clearTimeout(timeout);
+          audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+          audio.removeEventListener('error', onError);
+          reject(new Error('Failed to load audio from external server'));
+        };
+
+        audio.addEventListener('loadedmetadata', onLoadedMetadata);
+        audio.addEventListener('error', onError);
+      });
     }
   }
 
   // Event listeners
   playButton.addEventListener('click', async () => {
     try {
+      // Only show loading if we need to load audio or if it's not ready to play
+      if (audio.readyState < 3) {
+        setLoadingState(true);
+      }
       await loadAudioIfNeeded();
       
       if (audio.paused) {
-        setLoadingState(true);
         await audio.play();
         player.classList.add('playing');
       } else {
@@ -557,7 +588,18 @@
         player.classList.remove('playing');
       }
     } catch (error) {
-      showError('Failed to play audio. Please try again.');
+      let errorMessage = 'Failed to play audio. Please try again.';
+      
+      // Provide more specific error messages for external URLs
+      if (error.message.includes('timeout')) {
+        errorMessage = 'Audio is taking too long to load. The external server may be slow.';
+      } else if (error.message.includes('external server')) {
+        errorMessage = 'Cannot connect to audio server. Please check your internet connection.';
+      } else if (error.name === 'NotAllowedError') {
+        errorMessage = 'Audio playback blocked. Please click play to start.';
+      }
+      
+      showError(errorMessage);
       console.error('Playback error:', error);
     } finally {
       setLoadingState(false);
@@ -684,9 +726,20 @@
     updateWaveform(); // Initial waveform update
     setLoadingState(false);
   });
-  audio.addEventListener('loadstart', () => setLoadingState(true));
+  audio.addEventListener('loadstart', () => {
+    // Only show loading if user is actively trying to play
+    if (!audio.paused || player.classList.contains('playing')) {
+      setLoadingState(true);
+    }
+  });
   audio.addEventListener('canplay', () => setLoadingState(false));
-  audio.addEventListener('waiting', () => setLoadingState(true));
+  audio.addEventListener('canplaythrough', () => setLoadingState(false));
+  audio.addEventListener('waiting', () => {
+    // Only show loading during playback, not during initial load
+    if (!audio.paused) {
+      setLoadingState(true);
+    }
+  });
   audio.addEventListener('playing', () => setLoadingState(false));
   audio.addEventListener('ended', () => {
     player.classList.remove('playing');
@@ -699,34 +752,9 @@
     console.error('Audio error:', e);
   });
 
-  // Initialize streaming with better error handling
-  async function initializeStreaming() {
-    try {
-      setLoadingState(true);
-      const response = await fetch(`/api/episodes/{{ $episode['id'] }}/stream`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('Streaming data:', data.stream_url);
-      
-      if (data.stream_url) {
-        streamingUrl = data.stream_url;
-        isStreamingSupported = data.supports_range || false;
-        audio.src = streamingUrl;
-      } else {
-        // Fallback to direct URL
-        audio.src = '{{ $episode['url'] }}';
-      }
-    } catch (error) {
-      console.warn('Streaming not available, using direct URL:', error);
-      audio.src = '{{ $episode['url'] }}';
-    } finally {
-      setLoadingState(false);
-    }
-  }
+  // Audio is already initialized with direct source, no need for additional streaming setup
+  isStreamingSupported = true;
+  streamingUrl = '@if(str_starts_with($episode['url'], 'http')){{ $episode['url'] }}@else/api/stream/{{ $episode['filename'] }}@endif';
 
   // Cleanup function
   function cleanup() {
@@ -735,9 +763,9 @@
     }
   }
 
-  // Initialize everything - set audio source immediately but keep lazy loading for metadata
+  // Initialize everything - generate waveform and log audio initialization
   generateWaveform();
-  initializeStreaming(); // Initialize the audio source immediately
+  console.log('Audio initialized with source:', audio.src);
   
   // Clean up on page unload
   window.addEventListener('beforeunload', cleanup, { passive: true });

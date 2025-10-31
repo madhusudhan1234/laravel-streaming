@@ -65,16 +65,19 @@
             <button
                 @click="skipBackward"
                 :disabled="!episode || audioState.duration === 0"
-                class="skip-btn flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:bg-gray-200 hover:scale-105 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-300"
+                class="skip-btn flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-300"
                 aria-label="Skip backward 10 seconds"
                 title="Skip backward 10 seconds"
             >
                 <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                     <!-- Backward arrow with 10 indicator -->
-                    <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/>
+                    <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z" />
                     <!-- Small "10" integrated into the design -->
-                    <circle cx="16" cy="4" r="3" fill="currentColor"/>
-                    <path d="M14.5 2.5h1v3h-1v-3zm2 0h1v1.5h-1v-1.5zm0 1.5h1v1.5h-1v-1.5z" fill="white"/>
+                    <circle cx="16" cy="4" r="3" fill="currentColor" />
+                    <path
+                        d="M14.5 2.5h1v3h-1v-3zm2 0h1v1.5h-1v-1.5zm0 1.5h1v1.5h-1v-1.5z"
+                        fill="white"
+                    />
                 </svg>
             </button>
 
@@ -82,16 +85,19 @@
             <button
                 @click="skipForward"
                 :disabled="!episode || audioState.duration === 0"
-                class="skip-btn flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:bg-gray-200 hover:scale-105 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-300"
+                class="skip-btn flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-300"
                 aria-label="Skip forward 10 seconds"
                 title="Skip forward 10 seconds"
             >
                 <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                     <!-- Forward arrow with 10 indicator -->
-                    <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/>
+                    <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z" />
                     <!-- Small "10" integrated into the design -->
-                    <circle cx="8" cy="4" r="3" fill="currentColor"/>
-                    <path d="M6.5 2.5h1v3h-1v-3zm2 0h1v1.5h-1v-1.5zm0 1.5h1v1.5h-1v-1.5z" fill="white"/>
+                    <circle cx="8" cy="4" r="3" fill="currentColor" />
+                    <path
+                        d="M6.5 2.5h1v3h-1v-3zm2 0h1v1.5h-1v-1.5zm0 1.5h1v1.5h-1v-1.5z"
+                        fill="white"
+                    />
                 </svg>
             </button>
 
@@ -134,9 +140,7 @@
                 aria-label="Audio waveform - click to seek"
             >
                 <!-- Background Waveform -->
-                <div
-                    class="waveform-bars flex h-20 items-end justify-between"
-                >
+                <div class="waveform-bars flex h-20 items-end justify-between">
                     <div
                         v-for="(bar, index) in waveformBars"
                         :key="index"
@@ -406,22 +410,22 @@ const waveformBars = computed(() => {
         const mainWave = Math.sin(i * 0.08) * 0.4;
         const secondaryWave = Math.sin(i * 0.23) * 0.25;
         const detailWave = Math.sin(i * 0.47) * 0.15;
-        
+
         // Combine waves and add randomness
         const combined = mainWave + secondaryWave + detailWave;
         const randomness = (Math.random() - 0.5) * 0.3;
-        
+
         // Scale to percentage (8% to 85% range)
         let height = ((combined + randomness + 1) / 2) * 77 + 8;
-        
+
         // Make every 3rd bar smaller for detail
         if (i % 3 === 0) {
             height *= 0.4;
         }
-        
+
         // Ensure bounds
         height = Math.max(8, Math.min(85, height));
-        
+
         bars.push({ height });
     }
     return bars;
@@ -523,7 +527,10 @@ const skipForward = () => {
 // Keyboard shortcuts
 const handleKeydown = (event: KeyboardEvent) => {
     // Only handle shortcuts when not typing in an input
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+    if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+    ) {
         return;
     }
 

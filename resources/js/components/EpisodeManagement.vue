@@ -1,18 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { router, useForm, usePage } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import {
     Dialog,
     DialogContent,
@@ -22,10 +9,23 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { router, useForm, usePage } from '@inertiajs/vue3';
+import { onMounted, ref } from 'vue';
 // Alert dialog functionality will be handled using regular Dialog components
-import { Plus, Edit, Trash2, Upload } from 'lucide-vue-next';
-import { type Episode } from '@/types';
 import { toast } from '@/composables/useToast';
+import { type Episode } from '@/types';
+import { Edit, Plus, Trash2, Upload } from 'lucide-vue-next';
 
 interface Props {
     episodes: Episode[];
@@ -58,22 +58,27 @@ const errors = ref<Record<string, string>>({});
 const successMessage = ref('');
 
 // Format duration from decimal minutes to MM:SS format
-const formatDuration = (durationInMinutes: number | string | null | undefined): string => {
+const formatDuration = (
+    durationInMinutes: number | string | null | undefined,
+): string => {
     // Convert string to number if needed
-    const duration = typeof durationInMinutes === 'string' ? parseFloat(durationInMinutes) : durationInMinutes;
-    
+    const duration =
+        typeof durationInMinutes === 'string'
+            ? parseFloat(durationInMinutes)
+            : durationInMinutes;
+
     if (!duration || duration <= 0 || isNaN(duration)) {
         return '0:00';
     }
-    
+
     const totalMinutes = Math.floor(duration);
     const seconds = Math.round((duration - totalMinutes) * 60);
-    
+
     // Handle case where seconds round to 60
     if (seconds === 60) {
         return `${totalMinutes + 1}:00`;
     }
-    
+
     return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
@@ -115,13 +120,13 @@ const createEpisode = async () => {
             // Use Inertia visit to refresh with fresh data
             router.visit('/dashboard/episodes', {
                 preserveState: false,
-                preserveScroll: true
+                preserveScroll: true,
             });
         },
         onError: (errors) => {
             console.error('Error creating episode:', errors);
             toast.error('Failed to create episode. Please try again.');
-        }
+        },
     });
 };
 
@@ -138,7 +143,7 @@ const editEpisode = (episode: Episode) => {
 // Update episode
 const updateEpisode = async () => {
     if (!editingEpisode.value) return;
-    
+
     updateForm.put(`/dashboard/episodes/${editingEpisode.value.id}`, {
         onSuccess: () => {
             toast.success('Episode updated successfully!');
@@ -148,13 +153,13 @@ const updateEpisode = async () => {
             // Use Inertia visit to refresh with fresh data
             router.visit('/dashboard/episodes', {
                 preserveState: false,
-                preserveScroll: true
+                preserveScroll: true,
             });
         },
         onError: (errors) => {
             console.error('Error updating episode:', errors);
             toast.error('Failed to update episode. Please try again.');
-        }
+        },
     });
 };
 
@@ -165,7 +170,10 @@ const deleteEpisode = async (id: number) => {
             const response = await fetch(`/dashboard/episodes/${id}`, {
                 method: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-CSRF-TOKEN':
+                        document
+                            .querySelector('meta[name="csrf-token"]')
+                            ?.getAttribute('content') || '',
                 },
             });
 
@@ -174,7 +182,7 @@ const deleteEpisode = async (id: number) => {
                 // Use Inertia visit to refresh with fresh data
                 router.visit('/dashboard/episodes', {
                     preserveState: false,
-                    preserveScroll: true
+                    preserveScroll: true,
                 });
             } else {
                 toast.error('Failed to delete episode.');
@@ -188,13 +196,13 @@ const deleteEpisode = async (id: number) => {
 
 onMounted(() => {
     loadEpisodes();
-    
+
     // Check for flash messages from Laravel
     const flashProps = page.props as any;
     if (flashProps.flash?.success) {
         toast.success(flashProps.flash.success);
     }
-    
+
     if (flashProps.flash?.error) {
         toast.error(flashProps.flash.error);
     }
@@ -206,7 +214,9 @@ onMounted(() => {
         <!-- Header -->
         <div class="flex items-center justify-between">
             <div>
-                <h2 class="text-2xl font-bold tracking-tight">Episode Management</h2>
+                <h2 class="text-2xl font-bold tracking-tight">
+                    Episode Management
+                </h2>
                 <p class="text-muted-foreground">
                     Manage your podcast episodes
                 </p>
@@ -232,9 +242,14 @@ onMounted(() => {
                                 id="title"
                                 v-model="createForm.title"
                                 placeholder="Episode title"
-                                :class="{ 'border-red-500': createForm.errors.title }"
+                                :class="{
+                                    'border-red-500': createForm.errors.title,
+                                }"
                             />
-                            <p v-if="createForm.errors.title" class="text-sm text-red-500">
+                            <p
+                                v-if="createForm.errors.title"
+                                class="text-sm text-red-500"
+                            >
                                 {{ createForm.errors.title }}
                             </p>
                         </div>
@@ -244,9 +259,15 @@ onMounted(() => {
                                 id="description"
                                 v-model="createForm.description"
                                 placeholder="Episode description"
-                                :class="{ 'border-red-500': createForm.errors.description }"
+                                :class="{
+                                    'border-red-500':
+                                        createForm.errors.description,
+                                }"
                             />
-                            <p v-if="createForm.errors.description" class="text-sm text-red-500">
+                            <p
+                                v-if="createForm.errors.description"
+                                class="text-sm text-red-500"
+                            >
                                 {{ createForm.errors.description }}
                             </p>
                         </div>
@@ -257,36 +278,61 @@ onMounted(() => {
                                 type="file"
                                 accept=".mp3,.m4a"
                                 @change="handleFileSelect"
-                                :class="{ 'border-red-500': createForm.errors.audio_file }"
+                                :class="{
+                                    'border-red-500':
+                                        createForm.errors.audio_file,
+                                }"
                             />
-                            <p v-if="createForm.errors.audio_file" class="text-sm text-red-500">
+                            <p
+                                v-if="createForm.errors.audio_file"
+                                class="text-sm text-red-500"
+                            >
                                 {{ createForm.errors.audio_file }}
                             </p>
                         </div>
                         <div class="grid gap-2">
-                            <Label htmlFor="published_date">Published Date</Label>
+                            <Label htmlFor="published_date"
+                                >Published Date</Label
+                            >
                             <Input
                                 id="published_date"
                                 type="date"
                                 v-model="createForm.published_date"
-                                :class="{ 'border-red-500': createForm.errors.published_date }"
+                                :class="{
+                                    'border-red-500':
+                                        createForm.errors.published_date,
+                                }"
                             />
-                            <p v-if="createForm.errors.published_date" class="text-sm text-red-500">
+                            <p
+                                v-if="createForm.errors.published_date"
+                                class="text-sm text-red-500"
+                            >
                                 {{ createForm.errors.published_date }}
                             </p>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" @click="showAddDialog = false">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            @click="showAddDialog = false"
+                        >
                             Cancel
                         </Button>
-                        <Button 
-                            type="button" 
+                        <Button
+                            type="button"
                             @click="createEpisode"
                             :disabled="createForm.processing"
                         >
-                            <Upload v-if="!createForm.processing" class="mr-2 h-4 w-4" />
-                            {{ createForm.processing ? 'Creating...' : 'Create Episode' }}
+                            <Upload
+                                v-if="!createForm.processing"
+                                class="mr-2 h-4 w-4"
+                            />
+                            {{
+                                createForm.processing
+                                    ? 'Creating...'
+                                    : 'Create Episode'
+                            }}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -301,10 +347,15 @@ onMounted(() => {
         </div>
 
         <!-- Error Messages -->
-        <div v-if="Object.keys(errors).length > 0" class="rounded-md bg-red-50 p-4">
+        <div
+            v-if="Object.keys(errors).length > 0"
+            class="rounded-md bg-red-50 p-4"
+        >
             <div class="text-sm text-red-800">
-                <ul class="list-disc list-inside space-y-1">
-                    <li v-for="(error, key) in errors" :key="key">{{ error }}</li>
+                <ul class="list-inside list-disc space-y-1">
+                    <li v-for="(error, key) in errors" :key="key">
+                        {{ error }}
+                    </li>
                 </ul>
             </div>
         </div>
@@ -326,16 +377,26 @@ onMounted(() => {
                     <TableRow v-for="episode in episodes" :key="episode.id">
                         <TableCell class="font-medium">
                             <div>
-                                <div class="font-semibold">{{ episode.title }}</div>
+                                <div class="font-semibold">
+                                    {{ episode.title }}
+                                </div>
                                 <div class="text-sm text-muted-foreground">
                                     {{ episode.description }}
                                 </div>
                             </div>
                         </TableCell>
-                        <TableCell>{{ formatDuration(episode.duration) }}</TableCell>
+                        <TableCell>{{
+                            formatDuration(episode.duration)
+                        }}</TableCell>
                         <TableCell>{{ episode.file_size }}</TableCell>
-                        <TableCell>{{ episode.format.toUpperCase() }}</TableCell>
-                        <TableCell>{{ new Date(episode.published_date).toLocaleDateString() }}</TableCell>
+                        <TableCell>{{
+                            episode.format.toUpperCase()
+                        }}</TableCell>
+                        <TableCell>{{
+                            new Date(
+                                episode.published_date,
+                            ).toLocaleDateString()
+                        }}</TableCell>
                         <TableCell class="text-right">
                             <div class="flex justify-end gap-2">
                                 <Button
@@ -356,8 +417,12 @@ onMounted(() => {
                         </TableCell>
                     </TableRow>
                     <TableRow v-if="episodes.length === 0">
-                        <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
-                            No episodes found. Add your first episode to get started.
+                        <TableCell
+                            colspan="6"
+                            class="py-8 text-center text-muted-foreground"
+                        >
+                            No episodes found. Add your first episode to get
+                            started.
                         </TableCell>
                     </TableRow>
                 </TableBody>
@@ -380,9 +445,14 @@ onMounted(() => {
                             id="edit_title"
                             v-model="updateForm.title"
                             placeholder="Episode title"
-                            :class="{ 'border-red-500': updateForm.errors.title }"
+                            :class="{
+                                'border-red-500': updateForm.errors.title,
+                            }"
                         />
-                        <p v-if="updateForm.errors.title" class="text-sm text-red-500">
+                        <p
+                            v-if="updateForm.errors.title"
+                            class="text-sm text-red-500"
+                        >
                             {{ updateForm.errors.title }}
                         </p>
                     </div>
@@ -392,22 +462,34 @@ onMounted(() => {
                             id="edit_description"
                             v-model="updateForm.description"
                             placeholder="Episode description"
-                            :class="{ 'border-red-500': updateForm.errors.description }"
+                            :class="{
+                                'border-red-500': updateForm.errors.description,
+                            }"
                         />
-                        <p v-if="updateForm.errors.description" class="text-sm text-red-500">
+                        <p
+                            v-if="updateForm.errors.description"
+                            class="text-sm text-red-500"
+                        >
                             {{ updateForm.errors.description }}
                         </p>
                     </div>
                     <div class="grid gap-2">
-                        <Label htmlFor="edit_audio_file">Audio File (optional)</Label>
+                        <Label htmlFor="edit_audio_file"
+                            >Audio File (optional)</Label
+                        >
                         <Input
                             id="edit_audio_file"
                             type="file"
                             accept=".mp3,.m4a"
                             @change="handleEditFileSelect"
-                            :class="{ 'border-red-500': updateForm.errors.audio_file }"
+                            :class="{
+                                'border-red-500': updateForm.errors.audio_file,
+                            }"
                         />
-                        <p v-if="updateForm.errors.audio_file" class="text-sm text-red-500">
+                        <p
+                            v-if="updateForm.errors.audio_file"
+                            class="text-sm text-red-500"
+                        >
                             {{ updateForm.errors.audio_file }}
                         </p>
                         <p class="text-sm text-muted-foreground">
@@ -415,28 +497,44 @@ onMounted(() => {
                         </p>
                     </div>
                     <div class="grid gap-2">
-                        <Label htmlFor="edit_published_date">Published Date</Label>
+                        <Label htmlFor="edit_published_date"
+                            >Published Date</Label
+                        >
                         <Input
                             id="edit_published_date"
                             type="date"
                             v-model="updateForm.published_date"
-                            :class="{ 'border-red-500': updateForm.errors.published_date }"
+                            :class="{
+                                'border-red-500':
+                                    updateForm.errors.published_date,
+                            }"
                         />
-                        <p v-if="updateForm.errors.published_date" class="text-sm text-red-500">
+                        <p
+                            v-if="updateForm.errors.published_date"
+                            class="text-sm text-red-500"
+                        >
                             {{ updateForm.errors.published_date }}
                         </p>
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button type="button" variant="outline" @click="showEditDialog = false">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="showEditDialog = false"
+                    >
                         Cancel
                     </Button>
-                    <Button 
-                        type="button" 
+                    <Button
+                        type="button"
                         @click="updateEpisode"
                         :disabled="updateForm.processing"
                     >
-                        {{ updateForm.processing ? 'Updating...' : 'Update Episode' }}
+                        {{
+                            updateForm.processing
+                                ? 'Updating...'
+                                : 'Update Episode'
+                        }}
                     </Button>
                 </DialogFooter>
             </DialogContent>

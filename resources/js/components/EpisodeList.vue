@@ -7,9 +7,9 @@
             >
                 <div
                     class="flex h-10 w-10 items-center justify-center rounded-lg"
-                >
-                </div>
-                Tech Weekly update covering Software Engineering, DevOps, and Software Architecture topics.
+                ></div>
+                Tech Weekly update covering Software Engineering, DevOps, and
+                Software Architecture topics.
             </h1>
             <p class="text-lg text-gray-600">
                 {{ episodes.length }} episodes available
@@ -91,7 +91,9 @@
                                                     d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
                                                 />
                                             </svg>
-                                            {{ formatDuration(episode.duration) }}
+                                            {{
+                                                formatDuration(episode.duration)
+                                            }}
                                         </span>
                                         <span
                                             class="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1"
@@ -193,23 +195,39 @@
 
                         <!-- Skip Controls - Only show for currently playing episode -->
                         <div
-                            v-if="currentEpisode?.id === episode.id && isPlaying"
+                            v-if="
+                                currentEpisode?.id === episode.id && isPlaying
+                            "
                             class="skip-controls mt-3 flex items-center justify-center space-x-4"
                         >
                             <!-- 10-second backward button -->
                             <button
                                 @click.stop="skipBackward(episode)"
                                 :disabled="!duration || duration === 0"
-                                class="skip-btn flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:bg-gray-200 hover:scale-105 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-300"
+                                class="skip-btn flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-300"
                                 aria-label="Skip backward 10 seconds"
                                 title="Skip backward 10 seconds"
                             >
-                                <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                <svg
+                                    class="h-4 w-4"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
                                     <!-- Backward arrow with 10 indicator -->
-                                    <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/>
+                                    <path
+                                        d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"
+                                    />
                                     <!-- Small "10" integrated into the design -->
-                                    <circle cx="16" cy="4" r="2.5" fill="currentColor"/>
-                                    <path d="M14.8 2.8h0.8v2.4h-0.8v-2.4zm1.2 0h0.8v1.2h-0.8v-1.2zm0 1.2h0.8v1.2h-0.8v-1.2z" fill="white"/>
+                                    <circle
+                                        cx="16"
+                                        cy="4"
+                                        r="2.5"
+                                        fill="currentColor"
+                                    />
+                                    <path
+                                        d="M14.8 2.8h0.8v2.4h-0.8v-2.4zm1.2 0h0.8v1.2h-0.8v-1.2zm0 1.2h0.8v1.2h-0.8v-1.2z"
+                                        fill="white"
+                                    />
                                 </svg>
                             </button>
 
@@ -217,16 +235,30 @@
                             <button
                                 @click.stop="skipForward(episode)"
                                 :disabled="!duration || duration === 0"
-                                class="skip-btn flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:bg-gray-200 hover:scale-105 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-300"
+                                class="skip-btn flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:scale-105 hover:bg-gray-200 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:outline-none disabled:bg-gray-50 disabled:text-gray-300"
                                 aria-label="Skip forward 10 seconds"
                                 title="Skip forward 10 seconds"
                             >
-                                <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                <svg
+                                    class="h-4 w-4"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
                                     <!-- Forward arrow with 10 indicator -->
-                                    <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/>
+                                    <path
+                                        d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"
+                                    />
                                     <!-- Small "10" integrated into the design -->
-                                    <circle cx="8" cy="4" r="2.5" fill="currentColor"/>
-                                    <path d="M6.8 2.8h0.8v2.4h-0.8v-2.4zm1.2 0h0.8v1.2h-0.8v-1.2zm0 1.2h0.8v1.2h-0.8v-1.2z" fill="white"/>
+                                    <circle
+                                        cx="8"
+                                        cy="4"
+                                        r="2.5"
+                                        fill="currentColor"
+                                    />
+                                    <path
+                                        d="M6.8 2.8h0.8v2.4h-0.8v-2.4zm1.2 0h0.8v1.2h-0.8v-1.2zm0 1.2h0.8v1.2h-0.8v-1.2z"
+                                        fill="white"
+                                    />
                                 </svg>
                             </button>
                         </div>
@@ -479,27 +511,25 @@ const playEpisode = (episode: Episode) => {
 // 10-second skip functions
 const skipBackward = (episode: Episode) => {
     if (props.currentEpisode?.id !== episode.id || !props.duration) return;
-    
+
     const currentTime = (props.progress / 100) * props.duration;
     const newTime = Math.max(0, currentTime - 10);
     const newPercentage = (newTime / props.duration) * 100;
-    
+
     // Emit seek event to parent component
     emit('episodeSeek', episode, newPercentage);
 };
 
 const skipForward = (episode: Episode) => {
     if (props.currentEpisode?.id !== episode.id || !props.duration) return;
-    
+
     const currentTime = (props.progress / 100) * props.duration;
     const newTime = Math.min(props.duration, currentTime + 10);
     const newPercentage = (newTime / props.duration) * 100;
-    
+
     // Emit seek event to parent component
     emit('episodeSeek', episode, newPercentage);
 };
-
-
 
 const closeEmbedModal = () => {
     showEmbedModal.value = false;
@@ -530,18 +560,20 @@ const formatDate = (dateString: string): string => {
 };
 
 // Format duration - handles both MM:SS string format and decimal minutes
-const formatDuration = (duration: number | string | null | undefined): string => {
+const formatDuration = (
+    duration: number | string | null | undefined,
+): string => {
     if (!duration) {
         return '0:00';
     }
-    
+
     // If it's already in MM:SS format (string), return as is
     if (typeof duration === 'string') {
         // Check if it matches MM:SS or M:SS format
         if (/^\d{1,2}:\d{2}$/.test(duration)) {
             return duration;
         }
-        
+
         // Try to parse as decimal minutes if it's a numeric string
         const numericDuration = parseFloat(duration);
         if (isNaN(numericDuration)) {
@@ -549,24 +581,24 @@ const formatDuration = (duration: number | string | null | undefined): string =>
         }
         duration = numericDuration;
     }
-    
+
     // Handle numeric duration (decimal minutes)
     if (typeof duration === 'number') {
         if (duration <= 0 || isNaN(duration)) {
             return '0:00';
         }
-        
+
         const totalMinutes = Math.floor(duration);
         const seconds = Math.round((duration - totalMinutes) * 60);
-        
+
         // Handle case where seconds round to 60
         if (seconds === 60) {
             return `${totalMinutes + 1}:00`;
         }
-        
+
         return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
     }
-    
+
     return '0:00';
 };
 const formatTime = (seconds: number): string => {

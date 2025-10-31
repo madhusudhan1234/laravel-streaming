@@ -8,12 +8,12 @@
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
                         <div
-                            class="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden"
+                            class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg"
                         >
-                            <img 
-                                src="/images/image.png" 
-                                alt="Tech Weekly Podcast Logo" 
-                                class="h-10 w-10 object-cover rounded-lg"
+                            <img
+                                src="/images/image.png"
+                                alt="Tech Weekly Podcast Logo"
+                                class="h-10 w-10 rounded-lg object-cover"
                             />
                         </div>
                         <div>
@@ -124,10 +124,13 @@
                             <div
                                 class="flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-500"
                             >
-                                <span>{{ formatDuration(currentEpisode.duration) }}</span>
+                                <span>{{
+                                    formatDuration(currentEpisode.duration)
+                                }}</span>
                                 <span>{{ currentEpisode.file_size }}</span>
                                 <span>{{
-                                    currentEpisode.format?.toUpperCase() || 'MP3'
+                                    currentEpisode.format?.toUpperCase() ||
+                                    'MP3'
                                 }}</span>
                             </div>
 
@@ -295,25 +298,31 @@ interface Props {
 const props = defineProps<Props>();
 
 // Audio player composable
-const { audioState, progress, initAudio, play, pause, seekToPercentage } = useAudioPlayer();
+const { audioState, progress, initAudio, play, pause, seekToPercentage } =
+    useAudioPlayer();
 
 // Format duration from decimal minutes to MM:SS format
-const formatDuration = (durationInMinutes: number | string | null | undefined): string => {
+const formatDuration = (
+    durationInMinutes: number | string | null | undefined,
+): string => {
     // Convert string to number if needed
-    const duration = typeof durationInMinutes === 'string' ? parseFloat(durationInMinutes) : durationInMinutes;
-    
+    const duration =
+        typeof durationInMinutes === 'string'
+            ? parseFloat(durationInMinutes)
+            : durationInMinutes;
+
     if (!duration || duration <= 0 || isNaN(duration)) {
         return '0:00';
     }
-    
+
     const totalMinutes = Math.floor(duration);
     const seconds = Math.round((duration - totalMinutes) * 60);
-    
+
     // Handle case where seconds round to 60
     if (seconds === 60) {
         return `${totalMinutes + 1}:00`;
     }
-    
+
     return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
@@ -322,8 +331,11 @@ const totalDuration = computed(() => {
     const totalMinutes = props.episodes.reduce((total, episode) => {
         // Duration is now stored as decimal minutes
         if (!episode.duration) return total;
-        
-        const duration = typeof episode.duration === 'string' ? parseFloat(episode.duration) : episode.duration;
+
+        const duration =
+            typeof episode.duration === 'string'
+                ? parseFloat(episode.duration)
+                : episode.duration;
         return total + (duration || 0);
     }, 0);
 
@@ -369,7 +381,9 @@ const showEmbedCode = async () => {
     if (!currentEpisode.value) return;
 
     try {
-        const response = await fetch(`/api/embed/${currentEpisode.value.id}/code`);
+        const response = await fetch(
+            `/api/embed/${currentEpisode.value.id}/code`,
+        );
         const data = await response.json();
         embedCode.value = data.embedCode;
         showEmbedModal.value = true;
@@ -418,8 +432,6 @@ const handleEpisodeSeek = (episode: Episode, percentage: number) => {
         seekToPercentage(percentage);
     }
 };
-
-
 
 const formatDate = (dateString: string): string => {
     const date = new Date(dateString);

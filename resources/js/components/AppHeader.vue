@@ -103,10 +103,10 @@ const rightNavItems: NavItem[] = [
                             >
                             <SheetHeader class="flex justify-start text-left">
                                 <div class="size-6 overflow-hidden rounded-md">
-                                    <img 
-                                        src="/images/image.png" 
-                                        alt="Logo" 
-                                        class="size-6 object-cover rounded-md"
+                                    <img
+                                        src="/images/image.png"
+                                        alt="Logo"
+                                        class="size-6 rounded-md object-cover"
                                     />
                                 </div>
                             </SheetHeader>
