@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
 import EpisodeManagement from '@/components/EpisodeManagement.vue';
+import AppLayout from '@/layouts/AppLayout.vue';
 import { episodesDashboard } from '@/routes';
 import { type BreadcrumbItem, type Episode } from '@/types';
 import { Head } from '@inertiajs/vue3';
@@ -23,9 +23,13 @@ const breadcrumbs: BreadcrumbItem[] = [
     <Head title="Episode Management" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+        <div
+            class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"
+        >
             <!-- Episode Management Section -->
-            <div class="rounded-xl border border-sidebar-border/70 p-6 dark:border-sidebar-border">
+            <div
+                class="rounded-xl border border-sidebar-border/70 p-6 dark:border-sidebar-border"
+            >
                 <EpisodeManagement :episodes="props.episodes" />
             </div>
         </div>

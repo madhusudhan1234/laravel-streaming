@@ -25,10 +25,10 @@ defineProps<{
                 class="relative z-20 flex items-center text-lg font-medium"
             >
                 <div class="mr-2 size-8 overflow-hidden rounded-md">
-                    <img 
-                        src="/images/image.png" 
-                        alt="Logo" 
-                        class="size-8 object-cover rounded-md"
+                    <img
+                        src="/images/image.png"
+                        alt="Logo"
+                        class="size-8 rounded-md object-cover"
                     />
                 </div>
                 {{ name }}

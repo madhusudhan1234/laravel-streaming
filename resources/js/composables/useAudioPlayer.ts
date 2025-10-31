@@ -25,7 +25,7 @@ export interface AudioState {
 
 export function useAudioPlayer(episode?: Episode) {
     const audioElement = ref<HTMLAudioElement | null>(null);
-    
+
     // Initialize global audio manager
     const { registerPlayer } = useGlobalAudioManager();
     const audioManager = registerPlayer(() => {

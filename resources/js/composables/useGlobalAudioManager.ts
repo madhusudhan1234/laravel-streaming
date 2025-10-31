@@ -1,6 +1,6 @@
 /**
  * Global Audio Manager
- * 
+ *
  * Ensures only one audio player plays at a time across all embeds and main application.
  * Uses BroadcastChannel API for cross-frame communication.
  */
@@ -54,7 +54,7 @@ class GlobalAudioManager {
     public notifyPlay(playerId: string, episodeId?: number): void {
         // Pause all other players locally
         this.pauseOtherPlayers(playerId);
-        
+
         // Set current player
         this.currentPlayerId = playerId;
 
@@ -63,7 +63,7 @@ class GlobalAudioManager {
             type: 'PLAY',
             playerId,
             episodeId,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         });
     }
 
@@ -78,7 +78,7 @@ class GlobalAudioManager {
         this.broadcastMessage({
             type: 'PAUSE',
             playerId,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         });
     }
 
@@ -93,7 +93,7 @@ class GlobalAudioManager {
         this.broadcastMessage({
             type: 'STOP',
             playerId,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         });
     }
 
@@ -126,27 +126,30 @@ class GlobalAudioManager {
      * Setup message listener for cross-frame communication
      */
     private setupMessageListener(): void {
-        this.channel.addEventListener('message', (event: MessageEvent<AudioManagerMessage>) => {
-            const message = event.data;
-            
-            // Ignore messages from the same frame (prevent loops)
-            if (message.playerId && this.listeners.has(message.playerId)) {
-                return;
-            }
+        this.channel.addEventListener(
+            'message',
+            (event: MessageEvent<AudioManagerMessage>) => {
+                const message = event.data;
 
-            switch (message.type) {
-                case 'PLAY':
-                    // Pause all local players when another frame starts playing
-                    this.pauseOtherPlayers('');
-                    this.currentPlayerId = null; // Clear local current player
-                    break;
-                
-                case 'PAUSE':
-                case 'STOP':
-                    // No action needed for pause/stop from other frames
-                    break;
-            }
-        });
+                // Ignore messages from the same frame (prevent loops)
+                if (message.playerId && this.listeners.has(message.playerId)) {
+                    return;
+                }
+
+                switch (message.type) {
+                    case 'PLAY':
+                        // Pause all local players when another frame starts playing
+                        this.pauseOtherPlayers('');
+                        this.currentPlayerId = null; // Clear local current player
+                        break;
+
+                    case 'PAUSE':
+                    case 'STOP':
+                        // No action needed for pause/stop from other frames
+                        break;
+                }
+            },
+        );
     }
 
     /**
@@ -188,7 +191,7 @@ export function useGlobalAudioManager() {
      */
     const registerPlayer = (pauseCallback: () => void) => {
         const playerId = generatePlayerId();
-        
+
         manager.registerPlayer(playerId, pauseCallback);
 
         const notifyPlay = (episodeId?: number) => {
@@ -217,13 +220,13 @@ export function useGlobalAudioManager() {
             notifyPause,
             notifyStop,
             isCurrentPlayer,
-            unregister
+            unregister,
         };
     };
 
     return {
         registerPlayer,
-        getCurrentPlayerId: () => manager.getCurrentPlayerId()
+        getCurrentPlayerId: () => manager.getCurrentPlayerId(),
     };
 }
 

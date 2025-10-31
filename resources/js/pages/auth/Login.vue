@@ -100,7 +100,8 @@ defineProps<{
             </div>
 
             <div class="text-center text-sm text-muted-foreground">
-                Don't have an account? Contact an administrator to create one for you.
+                Don't have an account? Contact an administrator to create one
+                for you.
             </div>
         </Form>
     </AuthBase>

@@ -69,7 +69,7 @@ class AudioStreamControllerTest extends TestCase
         $request = Request::create('/api/stream/non-existent.mp3');
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
-        $this->expectExceptionMessage('Audio file not found');
+        $this->expectExceptionMessage('Episode not found');
 
         $this->controller->stream($request, 'non-existent.mp3');
     }
@@ -104,7 +104,7 @@ class AudioStreamControllerTest extends TestCase
         $request = Request::create('/api/stream/../../../etc/passwd');
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
-        $this->expectExceptionMessage('Audio file not found');
+        $this->expectExceptionMessage('Episode not found');
 
         $this->controller->stream($request, '../../../etc/passwd');
     }
