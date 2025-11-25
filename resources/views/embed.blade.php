@@ -6,12 +6,24 @@
 <title>{{ $episode['title'] }} - Tech Weekly</title>
 
 <!-- DNS prefetch and preconnect for external audio domain -->
-<link rel="dns-prefetch" href="//weekly.madhusudhansubedi.com.np">
-<link rel="preconnect" href="https://weekly.madhusudhansubedi.com.np" crossorigin>
+@php
+  $r2Base = config('filesystems.disks.r2.url') ?? env('R2_PUBLIC_URL');
+  $isExternalHttp = is_string($episode['url']) && str_starts_with($episode['url'], 'http');
+  $isExternalRelative = is_string($episode['url']) && (str_starts_with($episode['url'], '/episodes/') || str_starts_with($episode['url'], 'episodes/'));
+  $resolvedExternalUrl = $isExternalHttp ? $episode['url'] : ($isExternalRelative && $r2Base ? rtrim($r2Base, '/').'/'.ltrim($episode['url'], '/') : null);
+  $resolvedHost = $resolvedExternalUrl ? parse_url($resolvedExternalUrl, PHP_URL_HOST) : null;
+@endphp
+@if($resolvedHost)
+<link rel="dns-prefetch" href="//{{ $resolvedHost }}">
+<link rel="preconnect" href="https://{{ $resolvedHost }}" crossorigin>
+@endif
 
 <!-- Preload the audio file for faster loading -->
-@if(str_starts_with($episode['url'], 'http'))
-<link rel="preload" href="{{ $episode['url'] }}" as="audio" type="audio/{{ strtolower($episode['format'] ?? 'mp3') }}">
+@php
+  // variables already computed above: $resolvedExternalUrl
+@endphp
+@if($resolvedExternalUrl)
+<link rel="preload" href="{{ $resolvedExternalUrl }}" as="audio" type="audio/{{ strtolower($episode['format'] ?? 'mp3') }}">
 @endif
 
 <style>
@@ -400,7 +412,7 @@
 
     <div class="error-message" id="errorMessage"></div>
 
-    <audio id="audio" preload="metadata" src="@if(str_starts_with($episode['url'], 'http')){{ $episode['url'] }}@else/api/stream/{{ $episode['filename'] }}@endif"></audio>
+    <audio id="audio" preload="metadata" src="@if($resolvedExternalUrl){{ $resolvedExternalUrl }}@else/api/stream/{{ $episode['filename'] }}@endif"></audio>
   </div>
 
 <script>
@@ -754,7 +766,7 @@
 
   // Audio is already initialized with direct source, no need for additional streaming setup
   isStreamingSupported = true;
-  streamingUrl = '@if(str_starts_with($episode['url'], 'http')){{ $episode['url'] }}@else/api/stream/{{ $episode['filename'] }}@endif';
+  streamingUrl = '@if($resolvedExternalUrl){{ $resolvedExternalUrl }}@else/api/stream/{{ $episode['filename'] }}@endif';
 
   // Cleanup function
   function cleanup() {

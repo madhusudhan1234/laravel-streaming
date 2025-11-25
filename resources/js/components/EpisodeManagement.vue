@@ -61,24 +61,31 @@ const successMessage = ref('');
 const formatDuration = (
     durationInMinutes: number | string | null | undefined,
 ): string => {
-    // Convert string to number if needed
-    const duration =
-        typeof durationInMinutes === 'string'
-            ? parseFloat(durationInMinutes)
-            : durationInMinutes;
+    if (!durationInMinutes) return '0:00';
 
-    if (!duration || duration <= 0 || isNaN(duration)) {
+    if (typeof durationInMinutes === 'string') {
+        const str = durationInMinutes.trim();
+        if (str.includes(':')) {
+            const [m, s] = str.split(':');
+            const mm = Math.max(0, parseInt(m || '0', 10));
+            const ss = Math.max(0, parseInt(s || '0', 10));
+            return `${mm}:${ss.toString().padStart(2, '0')}`;
+        }
+        const num = parseFloat(str);
+        if (!isNaN(num) && num > 0) {
+            const totalMinutes = Math.floor(num);
+            const seconds = Math.round((num - totalMinutes) * 60);
+            if (seconds === 60) return `${totalMinutes + 1}:00`;
+            return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
+        }
         return '0:00';
     }
 
+    const duration = durationInMinutes as number;
+    if (!duration || duration <= 0 || isNaN(duration)) return '0:00';
     const totalMinutes = Math.floor(duration);
     const seconds = Math.round((duration - totalMinutes) * 60);
-
-    // Handle case where seconds round to 60
-    if (seconds === 60) {
-        return `${totalMinutes + 1}:00`;
-    }
-
+    if (seconds === 60) return `${totalMinutes + 1}:00`;
     return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
@@ -167,29 +174,35 @@ const updateEpisode = async () => {
 const deleteEpisode = async (id: number) => {
     if (confirm('Are you sure you want to delete this episode?')) {
         try {
+            const token =
+                document
+                    .querySelector('meta[name="csrf-token"]')
+                    ?.getAttribute('content') || '';
+
             const response = await fetch(`/dashboard/episodes/${id}`, {
                 method: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN':
-                        document
-                            .querySelector('meta[name="csrf-token"]')
-                            ?.getAttribute('content') || '',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': token,
                 },
+                credentials: 'same-origin',
             });
 
             if (response.ok) {
                 toast.success('Episode deleted successfully!');
-                // Use Inertia visit to refresh with fresh data
                 router.visit('/dashboard/episodes', {
                     preserveState: false,
                     preserveScroll: true,
                 });
             } else {
+                const data = await response.json().catch(() => null);
+                console.error('Delete failed:', data || response.statusText);
                 toast.error('Failed to delete episode.');
             }
         } catch (error) {
-            toast.error('An error occurred while deleting the episode.');
             console.error('Error deleting episode:', error);
+            toast.error('An error occurred while deleting the episode.');
         }
     }
 };

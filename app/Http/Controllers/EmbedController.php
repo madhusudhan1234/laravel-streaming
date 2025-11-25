@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Episode;
+use App\Repositories\EpisodeRepository;
 
 class EmbedController extends Controller
 {
@@ -60,6 +61,12 @@ class EmbedController extends Controller
      */
     private function getEpisode($id)
     {
+        if (! app()->environment('testing')) {
+            $e = EpisodeRepository::find((int) $id);
+            if ($e) {
+                return $e;
+            }
+        }
         try {
             return Episode::find($id);
         } catch (\Exception $e) {

@@ -52,6 +52,20 @@ services:
     networks:
       - lifeandmessage  
 
+  horizon:
+    image: laravel-streaming-app
+    container_name: horizon
+    restart: unless-stopped
+    command: sh -lc "php artisan horizon"
+    volumes:
+      - ./:/var/www
+    depends_on:
+      - app
+      - redis
+    networks:
+      - lifeandmessage
+
+
   node:
     image: node:current-alpine
     container_name: node
