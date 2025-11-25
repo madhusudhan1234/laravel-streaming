@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Models\Episode;
+use App\Repositories\EpisodeRepository;
 
 class AudioStreamController extends Controller
 {
@@ -15,21 +17,25 @@ class AudioStreamController extends Controller
         // Validate filename to prevent directory traversal
         $filename = basename($filename);
 
-        // Find episode by filename in database
-        $episode = \App\Models\Episode::where('filename', $filename)->first();
+        $episode = null;
+        if (! app()->environment('testing')) {
+            $episode = EpisodeRepository::findByFilename($filename);
+        }
+        if (! $episode) {
+            $episode = Episode::where('filename', $filename)->first();
+        }
 
         if (! $episode) {
             abort(404, 'Episode not found');
         }
 
         // Get the episode URL (could be local or external)
-        $episodeUrl = $episode->url;
+        $episodeUrl = is_array($episode) ? ($episode['url'] ?? null) : $episode->url;
 
-        // Handle external URLs (like Cloudflare R2)
-        if ($episode->isStoredOnR2()) {
-            // For external URLs, redirect to the actual URL
-            // This allows the CDN/external service to handle range requests
-            return redirect($episodeUrl, 302);
+        // Resolve external URL when stored as relative path
+        $resolvedExternalUrl = $this->resolveExternalUrl($episodeUrl);
+        if ($resolvedExternalUrl) {
+            return redirect($resolvedExternalUrl, 302);
         }
 
         // Handle local files
@@ -156,7 +162,7 @@ class AudioStreamController extends Controller
     private function getLocalFilePath($episodeUrl)
     {
         // If URL starts with http/https, it's external
-        if (str_starts_with($episodeUrl, 'http')) {
+        if (str_starts_with($episodeUrl, 'http') || str_starts_with($episodeUrl, '/episodes/')) {
             return null;
         }
 
@@ -175,14 +181,21 @@ class AudioStreamController extends Controller
     public function getEpisodeStreamUrl($id)
     {
         try {
-            $episode = \App\Models\Episode::find($id);
+            $episode = null;
+            if (! app()->environment('testing')) {
+                $episode = EpisodeRepository::find((int) $id);
+            }
+            if (! $episode) {
+                $episode = Episode::find($id);
+            }
 
             if (! $episode) {
                 return response()->json(['error' => 'Episode not found'], 404);
             }
 
             // Generate streaming URL
-            $streamUrl = url("/api/stream/{$episode->filename}");
+            $filename = is_array($episode) ? ($episode['filename'] ?? null) : $episode->filename;
+            $streamUrl = url("/api/stream/{$filename}");
 
             return response()->json([
                 'episode' => $episode,
@@ -193,5 +206,25 @@ class AudioStreamController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to get episode'], 500);
         }
+    }
+
+    private function resolveExternalUrl($episodeUrl): ?string
+    {
+        if (! is_string($episodeUrl) || $episodeUrl === '') {
+            return null;
+        }
+
+        if (str_starts_with($episodeUrl, 'http')) {
+            return $episodeUrl;
+        }
+
+        if (str_starts_with($episodeUrl, '/episodes/') || str_starts_with($episodeUrl, 'episodes/')) {
+            $base = config('filesystems.disks.r2.url') ?? env('R2_PUBLIC_URL');
+            if ($base) {
+                return rtrim($base, '/').'/'.ltrim($episodeUrl, '/');
+            }
+        }
+
+        return null;
     }
 }

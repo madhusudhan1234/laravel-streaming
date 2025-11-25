@@ -63,7 +63,11 @@ export function useAudioPlayer(episode?: Episode) {
             audioElement.value.src = '';
         }
 
-        audioElement.value = new Audio(episodeData.url);
+        const source = episodeData.url && episodeData.url.startsWith('http')
+            ? episodeData.url
+            : `/api/stream/${episodeData.filename}`;
+
+        audioElement.value = new Audio(source);
 
         // Configure for progressive streaming like SoundCloud
         audioElement.value.preload = 'none'; // Only load when user clicks play
