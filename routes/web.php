@@ -13,8 +13,6 @@ Route::get('/', [EpisodeController::class, 'index'])->name('home');
 Route::get('/embed/{id}', [EmbedController::class, 'show'])->name('embed.show');
 Route::get('/api/embed/{id}/code', [EmbedController::class, 'generateEmbedCode'])->name('embed.code');
 
-// Embed testing page
-Route::get('/embed-test', [EmbedController::class, 'testPage'])->name('embed.test');
 
 // API routes for episodes
 Route::get('/api/episodes', [EpisodeController::class, 'apiIndex'])->name('api.episodes');
@@ -32,6 +30,7 @@ Route::get('dashboard', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard/episodes', [EpisodeController::class, 'dashboard'])->name('episodes.dashboard');
     Route::post('/dashboard/episodes', [EpisodeController::class, 'store'])->name('episodes.store');
+    Route::post('/dashboard/episodes/sync', [EpisodeController::class, 'sync'])->name('episodes.sync');
     Route::get('/dashboard/episodes/{episode}/edit', [EpisodeController::class, 'edit'])->name('episodes.edit');
     Route::put('/dashboard/episodes/{episode}', [EpisodeController::class, 'update'])->name('episodes.update');
     Route::delete('/dashboard/episodes/{episode}', [EpisodeController::class, 'destroy'])->name('episodes.destroy');
