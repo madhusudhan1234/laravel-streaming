@@ -25,7 +25,7 @@ class SyncEpisodesToRedis implements ShouldQueue
     {
         $episodes = $this->episodes;
         if (empty($episodes)) {
-            $dir = storage_path('app/episodes');
+            $dir = public_path('episodes');
             if (File::isDirectory($dir)) {
                 foreach (File::glob($dir.'/*.json') as $file) {
                     $json = File::get($file);

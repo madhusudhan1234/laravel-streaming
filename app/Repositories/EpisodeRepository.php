@@ -9,12 +9,12 @@ class EpisodeRepository
 {
     private static function path(): string
     {
-        return storage_path('app/episodes.json');
+        return public_path('episodes.json');
     }
 
     private static function dir(): string
     {
-        return storage_path('app/episodes');
+        return public_path('episodes');
     }
 
     private static function load(): array
