@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\File;
 class SanitizeEpisodesJson extends Command
 {
     protected $signature = 'episodes:sanitize-json';
+
     protected $description = 'Remove unnecessary properties (e.g., idx) from storage/app/episodes.json';
 
     public function handle(): int
@@ -15,6 +16,7 @@ class SanitizeEpisodesJson extends Command
         $path = storage_path('app/episodes.json');
         if (! File::exists($path)) {
             $this->error('episodes.json not found at '.$path);
+
             return self::FAILURE;
         }
 
@@ -22,6 +24,7 @@ class SanitizeEpisodesJson extends Command
         $data = json_decode($raw, true);
         if ($data === null) {
             $this->error('Invalid JSON in episodes.json');
+
             return self::FAILURE;
         }
 
@@ -53,6 +56,7 @@ class SanitizeEpisodesJson extends Command
         File::put($path, $json);
 
         $this->info('Sanitized episodes.json; idx removed from '.$removedCount.' entries.');
+
         return self::SUCCESS;
     }
 }

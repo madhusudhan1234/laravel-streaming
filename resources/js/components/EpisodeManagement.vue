@@ -207,6 +207,26 @@ const deleteEpisode = async (id: number) => {
     }
 };
 
+const syncEpisodes = async () => {
+    try {
+        await router.post('/dashboard/episodes/sync', {}, {
+            onSuccess: () => {
+                toast.success('Sync queued to Redis');
+                router.visit('/dashboard/episodes', {
+                    preserveState: false,
+                    preserveScroll: true,
+                });
+            },
+            onError: () => {
+                toast.error('Failed to queue sync');
+            },
+        } as any);
+    } catch (e) {
+        toast.error('Failed to queue sync');
+        console.error(e);
+    }
+};
+
 onMounted(() => {
     loadEpisodes();
 
@@ -234,7 +254,9 @@ onMounted(() => {
                     Manage your podcast episodes
                 </p>
             </div>
-            <Dialog v-model:open="showAddDialog">
+            <div class="flex items-center gap-2">
+                <Button variant="outline" @click="syncEpisodes">Sync to Redis</Button>
+                <Dialog v-model:open="showAddDialog">
                 <DialogTrigger asChild>
                     <Button>
                         <Plus class="mr-2 h-4 w-4" />
@@ -349,7 +371,8 @@ onMounted(() => {
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+                </Dialog>
+            </div>
         </div>
 
         <!-- Success Message -->

@@ -24,6 +24,7 @@ class AppendEpisode implements ShouldQueue
     public function handle(): void
     {
         $added = EpisodeRepository::add($this->episode);
+        
         if (! $added) {
             Log::error('Queue: failed to append episode', ['episode' => $this->episode]);
         } else {

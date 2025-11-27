@@ -23,17 +23,6 @@ class EmbedController extends Controller
         ]);
     }
 
-    /**
-     * Show embed testing page with all episodes
-     */
-    public function testPage()
-    {
-        $episodes = Episode::orderBy('id')->get();
-
-        return view('embed-test', [
-            'episodes' => $episodes,
-        ]);
-    }
 
     /**
      * Generate embed code for an episode
@@ -79,7 +68,8 @@ class EmbedController extends Controller
      */
     private function buildEmbedCode($embedUrl, $episode)
     {
-        $title = htmlspecialchars($episode->title);
+        $titleVal = is_array($episode) ? ($episode['title'] ?? '') : ($episode->title ?? '');
+        $title = htmlspecialchars($titleVal);
 
         return sprintf(
             '<iframe src="%s" width="100%%" height="120" frameborder="0" title="%s" allow="autoplay"></iframe>',

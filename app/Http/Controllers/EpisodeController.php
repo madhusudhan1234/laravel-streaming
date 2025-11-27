@@ -7,8 +7,10 @@ use App\Repositories\EpisodeRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Redis;
 use Inertia\Inertia;
 use App\Jobs\AppendEpisode;
+use App\Jobs\SyncEpisodesToRedis;
 
 class EpisodeController extends Controller
 {
@@ -23,17 +25,23 @@ class EpisodeController extends Controller
 
     public function getEpisodes()
     {
-        if (! app()->environment('testing')) {
-            $episodes = EpisodeRepository::all();
-            if (! empty($episodes)) {
-                return $episodes;
+        if (app()->environment('testing')) {
+            try {
+                return Episode::orderBy('id')->get()->toArray();
+            } catch (\Exception $e) {
+                return [];
             }
         }
-        try {
-            return Episode::orderBy('id')->get()->toArray();
-        } catch (\Exception $e) {
-            return [];
+
+        $raw = Redis::get('episodes:all');
+        $episodes = [];
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $episodes = $decoded;
+            }
         }
+        return $episodes;
     }
 
     public function apiIndex()
@@ -78,20 +86,26 @@ class EpisodeController extends Controller
 
     public function dashboard()
     {
-        if (! app()->environment('testing')) {
-            $episodes = EpisodeRepository::all();
-            usort($episodes, fn ($a, $b) => ($b['id'] ?? 0) <=> ($a['id'] ?? 0));
-
-            return Inertia::render('EpisodeManagement', [
-                'episodes' => $episodes,
-            ]);
+        $raw = Redis::get('episodes:all');
+        $episodes = [];
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $episodes = $decoded;
+            }
         }
-
-        $episodes = Episode::orderBy('id', 'desc')->get();
+        usort($episodes, fn ($a, $b) => ($b['id'] ?? 0) <=> ($a['id'] ?? 0));
 
         return Inertia::render('EpisodeManagement', [
             'episodes' => $episodes,
         ]);
+    }
+
+    public function sync()
+    {
+        $episodes = EpisodeRepository::all();
+        SyncEpisodesToRedis::dispatch($episodes);
+        return redirect()->route('episodes.dashboard')->with('success', 'Episodes sync queued');
     }
 
     public function store(Request $request)
@@ -301,7 +315,7 @@ class EpisodeController extends Controller
                     try {
                         $currentUrl = is_array($current) ? ($current['url'] ?? '') : $current->url;
                         if (is_string($currentUrl) && str_starts_with($currentUrl, 'http')) {
-                        $urlParts = parse_url($currentUrl);
+                            $urlParts = parse_url($currentUrl);
                             $path = ltrim($urlParts['path'] ?? '', '/');
                             Storage::disk('r2')->delete($path);
                         } else {
@@ -357,7 +371,6 @@ class EpisodeController extends Controller
                     }
 
                     $fileUrl = '/audios/'.$filename;
-                    $storagePath = 'audios/'.$filename;
                 }
 
                 // Get file info
