@@ -38,6 +38,7 @@ class SyncEpisodesToRedis implements ShouldQueue
         }
 
         // clear existing episodes list key before repopulating
+        Redis::del('episodes:all');
         if (! empty($episodes)) {
             usort($episodes, function ($a, $b) {
                 return ($a['id'] ?? 0) <=> ($b['id'] ?? 0);
