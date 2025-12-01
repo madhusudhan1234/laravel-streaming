@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Redis;
 use Inertia\Inertia;
 use App\Jobs\AppendEpisode;
 use App\Jobs\SyncEpisodesToRedis;
+use App\Jobs\PushEpisodeToGithub;
+use App\Jobs\DeleteEpisodeFromGithub;
 
 class EpisodeController extends Controller
 {
@@ -103,8 +105,7 @@ class EpisodeController extends Controller
 
     public function sync()
     {
-        $episodes = EpisodeRepository::all();
-        SyncEpisodesToRedis::dispatch($episodes);
+        SyncEpisodesToRedis::dispatch();
         return redirect()->route('episodes.dashboard')->with('success', 'Episodes sync queued');
     }
 
@@ -403,6 +404,9 @@ class EpisodeController extends Controller
                 if (! $updated) {
                     return redirect()->back()->withErrors(['error' => 'Error updating episode']);
                 }
+                if (env('GITHUB_TOKEN') && env('EPISODES_REPO_OWNER') && env('EPISODES_REPO_NAME')) {
+                    PushEpisodeToGithub::dispatch($updated);
+                }
             } else {
                 $model = Episode::find($episode);
                 if (! $model) {
@@ -453,6 +457,9 @@ class EpisodeController extends Controller
                 if (! $deleted) {
                     return response()->json([
                         'message' => 'Episode not found'], 404);
+                }
+                if (env('GITHUB_TOKEN') && env('EPISODES_REPO_OWNER') && env('EPISODES_REPO_NAME')) {
+                    DeleteEpisodeFromGithub::dispatch((int) $episode);
                 }
             } else {
                 $model = Episode::find($episode);

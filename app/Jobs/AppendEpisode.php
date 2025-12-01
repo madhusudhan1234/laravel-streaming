@@ -9,6 +9,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use App\Jobs\PushEpisodeToGithub;
 
 class AppendEpisode implements ShouldQueue
 {
@@ -29,7 +30,9 @@ class AppendEpisode implements ShouldQueue
             Log::error('Queue: failed to append episode', ['episode' => $this->episode]);
         } else {
             Log::info('Queue: episode appended', ['episode' => $added]);
+            if (env('GITHUB_TOKEN') && env('EPISODES_REPO_OWNER') && env('EPISODES_REPO_NAME')) {
+                PushEpisodeToGithub::dispatch($added);
+            }
         }
     }
 }
-
