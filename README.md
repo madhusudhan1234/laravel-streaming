@@ -2,6 +2,9 @@
 
 A modern audio streaming platform built with Laravel, Inertia.js, and Vue.js, featuring embeddable audio players and a clean, responsive interface.
 
+- [https://weekly.madhusudhansubedi.com.np](https://weekly.madhusudhansubedi.com.np)
+- [https://madhusudhansubedi.com.np/weekly](https://madhusudhansubedi.com.np/weekly)
+
 ## 🎵 Project Overview
 
 This application is a full-featured audio streaming platform that allows users to:
@@ -14,7 +17,7 @@ This application is a full-featured audio streaming platform that allows users t
 ## 🚀 Technology Stack
 
 ### Backend
-- **Laravel 11.x** - PHP web application framework
+- **Laravel 12.x** - PHP web application framework
 - **PHP 8.4** - Server-side scripting language
 - **MySQL 8.0** - Database management system
 - **Redis** - Caching and session storage
