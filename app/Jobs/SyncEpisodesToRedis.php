@@ -8,7 +8,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 
 class SyncEpisodesToRedis implements ShouldQueue
@@ -61,35 +60,6 @@ class SyncEpisodesToRedis implements ShouldQueue
                                 }
                             }
                         }
-                    }
-                }
-            }
-        }
-        if (empty($episodes)) {
-            $source = env('EPISODES_SOURCE');
-            $gitPath = env('EPISODES_GIT_LOCAL_PATH');
-            $envFolder = env('EPISODES_ENV', 'production');
-            if ($source === 'git' && is_string($gitPath) && $gitPath !== '') {
-                $dir = rtrim($gitPath, '/').'/'.$envFolder.'/episodes';
-                if (File::isDirectory($dir)) {
-                    foreach (File::glob($dir.'/*.json') as $file) {
-                        $json = File::get($file);
-                        $ep = json_decode($json, true);
-                        if (is_array($ep) && isset($ep['id'])) {
-                            $episodes[] = $ep;
-                        }
-                    }
-                }
-            }
-        }
-        if (empty($episodes)) {
-            $dir = public_path('episodes');
-            if (File::isDirectory($dir)) {
-                foreach (File::glob($dir.'/*.json') as $file) {
-                    $json = File::get($file);
-                    $ep = json_decode($json, true);
-                    if (is_array($ep) && isset($ep['id'])) {
-                        $episodes[] = $ep;
                     }
                 }
             }
