@@ -7,10 +7,12 @@ use App\Repositories\EpisodeRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Redis;
 use Inertia\Inertia;
 use App\Jobs\AppendEpisode;
 use App\Jobs\SyncEpisodesToRedis;
+use App\Jobs\DeleteEpisodeFromGithub;
 
 class EpisodeController extends Controller
 {
@@ -103,20 +105,12 @@ class EpisodeController extends Controller
 
     public function sync()
     {
-        $episodes = EpisodeRepository::all();
-        SyncEpisodesToRedis::dispatch($episodes);
+        SyncEpisodesToRedis::dispatch();
         return redirect()->route('episodes.dashboard')->with('success', 'Episodes sync queued');
     }
 
     public function store(Request $request)
     {
-        Log::info('=== EPISODE STORE METHOD CALLED ===', [
-            'timestamp' => now(),
-            'request_data' => $request->all(),
-            'has_audio_file' => $request->hasFile('audio_file'),
-            'user_id' => $request->user()?->id,
-        ]);
-
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -133,24 +127,11 @@ class EpisodeController extends Controller
             $audioFile = $request->file('audio_file');
 
             if (! $audioFile->isValid()) {
-                Log::error('Invalid audio file uploaded', [
-                    'error' => $audioFile->getError(),
-                    'error_message' => $audioFile->getErrorMessage(),
-                ]);
-
                 return redirect()->back()->withErrors(['error' => 'The audio file failed to upload. Error: '.$audioFile->getErrorMessage()]);
             }
 
             $filename = time().'_'.$audioFile->getClientOriginalName();
             $storagePath = 'episodes/'.$filename;
-
-            Log::info('Attempting to upload file', [
-                'original_name' => $audioFile->getClientOriginalName(),
-                'filename' => $filename,
-                'storage_path' => $storagePath,
-                'file_size' => $audioFile->getSize(),
-                'mime_type' => $audioFile->getMimeType(),
-            ]);
 
             $useR2 = config('filesystems.default') === 'r2' ||
                      (config('filesystems.disks.r2.key') && config('filesystems.disks.r2.bucket'));
@@ -186,13 +167,6 @@ class EpisodeController extends Controller
 
 
                 } catch (\Exception $e) {
-                    Log::error('Exception during R2 upload', [
-                        'filename' => $filename,
-                        'storage_path' => $storagePath,
-                        'exception_message' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString(),
-                    ]);
-
                     return redirect()->back()->withErrors(['error' => 'Failed to upload audio file to cloud storage: '.$e->getMessage()]);
                 }
             } else {
@@ -403,6 +377,36 @@ class EpisodeController extends Controller
                 if (! $updated) {
                     return redirect()->back()->withErrors(['error' => 'Error updating episode']);
                 }
+                $token = env('GITHUB_TOKEN');
+                $owner = env('EPISODES_REPO_OWNER');
+                $repo = env('EPISODES_REPO_NAME');
+                $branch = env('EPISODES_BRANCH', 'main');
+                $envFolder = env('EPISODES_ENV', 'production');
+                if ($token && $owner && $repo) {
+                    $headers = [
+                        'Authorization' => 'Bearer '.$token,
+                        'Accept' => 'application/vnd.github+json',
+                        'X-GitHub-Api-Version' => '2022-11-28',
+                    ];
+                    $base = 'https://api.github.com/repos/'.rawurlencode($owner).'/'.rawurlencode($repo).'/contents/';
+                    $path = $envFolder.'/episodes/'.intval($episode).'.json';
+                    $sha = null;
+                    $get = Http::withHeaders($headers)->get($base.$path, ['ref' => $branch]);
+                    if ($get->ok()) {
+                        $payload = $get->json();
+                        $sha = $payload['sha'] ?? null;
+                    }
+                    $content = base64_encode(json_encode($updated, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                    $body = [
+                        'message' => 'Upsert episode '.intval($episode),
+                        'content' => $content,
+                        'branch' => $branch,
+                    ];
+                    if ($sha) {
+                        $body['sha'] = $sha;
+                    }
+                    Http::withHeaders($headers)->put($base.$path, $body);
+                }
             } else {
                 $model = Episode::find($episode);
                 if (! $model) {
@@ -449,10 +453,22 @@ class EpisodeController extends Controller
             }
 
             if (! app()->environment('testing')) {
-                $deleted = EpisodeRepository::delete((int) $episode);
-                if (! $deleted) {
-                    return response()->json([
-                        'message' => 'Episode not found'], 404);
+                $raw = Redis::get('episodes:all');
+                $episodes = [];
+                if (is_string($raw)) {
+                    $decoded = json_decode($raw, true);
+                    if (is_array($decoded)) {
+                        $episodes = $decoded;
+                    }
+                }
+                $episodes = array_values(array_filter($episodes, function ($ep) use ($episode) {
+                    return intval($ep['id'] ?? 0) !== intval($episode);
+                }));
+                Redis::del('episode:'.intval($episode));
+                Redis::set('episodes:all', json_encode($episodes));
+
+                if (env('GITHUB_TOKEN') && env('EPISODES_REPO_OWNER') && env('EPISODES_REPO_NAME')) {
+                    DeleteEpisodeFromGithub::dispatch((int) $episode);
                 }
             } else {
                 $model = Episode::find($episode);

@@ -7,10 +7,6 @@ use Illuminate\Support\Facades\Redis;
 
 class EpisodeRepository
 {
-    private static function path(): string
-    {
-        return public_path('episodes.json');
-    }
 
     private static function dir(): string
     {
@@ -34,18 +30,6 @@ class EpisodeRepository
             }
         }
 
-        $path = self::path();
-        if (File::exists($path)) {
-            $json = File::get($path);
-            $data = json_decode($json, true);
-            if (! is_array($data)) {
-                return [];
-            }
-            if (isset($data['episodes']) && is_array($data['episodes'])) {
-                return $data['episodes'];
-            }
-            return $data;
-        }
         return [];
     }
 
