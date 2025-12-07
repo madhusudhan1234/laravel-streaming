@@ -26,11 +26,11 @@ class SyncEpisodesToRedis implements ShouldQueue
     {
         $episodes = $this->episodes;
         if (empty($episodes)) {
-            $owner = env('EPISODES_REPO_OWNER');
-            $name = env('EPISODES_REPO_NAME');
-            $branch = env('EPISODES_BRANCH', 'main');
-            $envFolder = env('EPISODES_ENV', 'production');
-            $token = env('GITHUB_TOKEN');
+            $owner = config('episodes.owner');
+            $name = config('episodes.name');
+            $branch = config('episodes.branch');
+            $envFolder = config('episodes.env');
+            $token = config('episodes.token');
             if ($token && $owner && $name) {
                 $headers = [
                     'Authorization' => 'Bearer '.$token,
@@ -68,10 +68,10 @@ class SyncEpisodesToRedis implements ShouldQueue
 
         if (empty($episodes)) {
             Log::warning('SyncEpisodesToRedis episodes not fetched and not available', [
-                'owner' => env('EPISODES_REPO_OWNER'),
-                'repo' => env('EPISODES_REPO_NAME'),
-                'env' => env('EPISODES_ENV', 'production'),
-                'branch' => env('EPISODES_BRANCH', 'main'),
+                'owner' => config('episodes.owner'),
+                'repo' => config('episodes.name'),
+                'env' => config('episodes.env'),
+                'branch' => config('episodes.branch'),
             ]);
         }
 
