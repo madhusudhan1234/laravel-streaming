@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Bus;
 use Inertia\Inertia;
 use App\Jobs\AppendEpisode;
 use App\Jobs\SyncEpisodesToRedis;
@@ -221,7 +222,10 @@ class EpisodeController extends Controller
                     'updated_at' => $now,
                 ];
 
-                AppendEpisode::dispatch($episode);
+                Bus::chain([
+                    new AppendEpisode($episode),
+                    new SyncEpisodesToRedis(),
+                ])->dispatch();
             } else {
                 $episode = Episode::create([
                     'title' => $request->title,
@@ -377,11 +381,11 @@ class EpisodeController extends Controller
                 if (! $updated) {
                     return redirect()->back()->withErrors(['error' => 'Error updating episode']);
                 }
-                $token = env('GITHUB_TOKEN');
-                $owner = env('EPISODES_REPO_OWNER');
-                $repo = env('EPISODES_REPO_NAME');
-                $branch = env('EPISODES_BRANCH', 'main');
-                $envFolder = env('EPISODES_ENV', 'production');
+                $token = config('episodes.token');
+                $owner = config('episodes.owner');
+                $repo = config('episodes.name');
+                $branch = config('episodes.branch');
+                $envFolder = config('episodes.env');
                 if ($token && $owner && $repo) {
                     $headers = [
                         'Authorization' => 'Bearer '.$token,
@@ -406,6 +410,7 @@ class EpisodeController extends Controller
                         $body['sha'] = $sha;
                     }
                     Http::withHeaders($headers)->put($base.$path, $body);
+                    SyncEpisodesToRedis::dispatch();
                 }
             } else {
                 $model = Episode::find($episode);
@@ -467,8 +472,11 @@ class EpisodeController extends Controller
                 Redis::del('episode:'.intval($episode));
                 Redis::set('episodes:all', json_encode($episodes));
 
-                if (env('GITHUB_TOKEN') && env('EPISODES_REPO_OWNER') && env('EPISODES_REPO_NAME')) {
-                    DeleteEpisodeFromGithub::dispatch((int) $episode);
+                if (config('episodes.token') && config('episodes.owner') && config('episodes.name')) {
+                    \Illuminate\Support\Facades\Bus::chain([
+                        new DeleteEpisodeFromGithub((int) $episode),
+                        new SyncEpisodesToRedis(),
+                    ])->dispatch();
                 }
             } else {
                 $model = Episode::find($episode);

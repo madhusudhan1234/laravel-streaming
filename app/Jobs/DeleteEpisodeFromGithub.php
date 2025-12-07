@@ -23,14 +23,14 @@ class DeleteEpisodeFromGithub implements ShouldQueue
 
     public function handle(): void
     {
-        $token = env('GITHUB_TOKEN');
-        $owner = env('EPISODES_REPO_OWNER');
-        $repo = env('EPISODES_REPO_NAME');
-        $branch = env('EPISODES_BRANCH', 'main');
-        $envFolder = env('EPISODES_ENV', 'production');
+        $token = config('episodes.token');
+        $owner = config('episodes.owner');
+        $repo = config('episodes.name');
+        $branch = config('episodes.branch');
+        $envFolder = config('episodes.env');
 
         if (! $token || ! $owner || ! $repo) {
-            Log::warning('DeleteEpisodeFromGithub skipped due to missing env');
+            Log::warning('DeleteEpisodeFromGithub skipped due to missing config');
             return;
         }
 
