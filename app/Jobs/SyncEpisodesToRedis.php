@@ -9,6 +9,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class SyncEpisodesToRedis implements ShouldQueue
 {
@@ -63,6 +64,15 @@ class SyncEpisodesToRedis implements ShouldQueue
                     }
                 }
             }
+        }
+
+        if (empty($episodes)) {
+            Log::warning('SyncEpisodesToRedis episodes not fetched and not available', [
+                'owner' => env('EPISODES_REPO_OWNER'),
+                'repo' => env('EPISODES_REPO_NAME'),
+                'env' => env('EPISODES_ENV', 'production'),
+                'branch' => env('EPISODES_BRANCH', 'main'),
+            ]);
         }
 
         Redis::del('episodes:all');
