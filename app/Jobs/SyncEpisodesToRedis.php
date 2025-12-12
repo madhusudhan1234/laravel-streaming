@@ -75,6 +75,9 @@ class SyncEpisodesToRedis implements ShouldQueue
             ]);
         }
 
+        foreach (Redis::keys('episode:*') as $k) {
+            Redis::del($k);
+        }
         Redis::del('episodes:all');
         if (! empty($episodes)) {
             usort($episodes, function ($a, $b) {
