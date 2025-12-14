@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Episode extends Model
 {
     protected $fillable = [
+        'id',
         'title',
         'filename',
         'url',
