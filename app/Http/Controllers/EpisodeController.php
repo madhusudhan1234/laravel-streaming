@@ -44,6 +44,13 @@ class EpisodeController extends Controller
                 $episodes = $decoded;
             }
         }
+        if (empty($episodes)) {
+            try {
+                return Episode::orderBy('id')->get()->toArray();
+            } catch (\Exception $e) {
+                return [];
+            }
+        }
         return $episodes;
     }
 
