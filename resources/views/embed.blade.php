@@ -7,7 +7,7 @@
 
 <!-- DNS prefetch and preconnect for external audio domain -->
 @php
-  $r2Base = config('filesystems.disks.r2.url') ?? env('R2_PUBLIC_URL');
+  $r2Base = config('filesystems.disks.r2.url');
   $isExternalHttp = is_string($episode['url']) && str_starts_with($episode['url'], 'http');
   $isExternalRelative = is_string($episode['url']) && (str_starts_with($episode['url'], '/episodes/') || str_starts_with($episode['url'], 'episodes/'));
   $resolvedExternalUrl = $isExternalHttp ? $episode['url'] : ($isExternalRelative && $r2Base ? rtrim($r2Base, '/').'/'.ltrim($episode['url'], '/') : null);

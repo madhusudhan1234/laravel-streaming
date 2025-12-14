@@ -219,7 +219,7 @@ class AudioStreamController extends Controller
         }
 
         if (str_starts_with($episodeUrl, '/episodes/') || str_starts_with($episodeUrl, 'episodes/')) {
-            $base = config('filesystems.disks.r2.url') ?? env('R2_PUBLIC_URL');
+            $base = config('filesystems.disks.r2.url');
             if ($base) {
                 return rtrim($base, '/').'/'.ltrim($episodeUrl, '/');
             }
