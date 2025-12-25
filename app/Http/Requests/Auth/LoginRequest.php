@@ -26,6 +26,12 @@ class LoginRequest extends FormRequest
      */
     public function rules(): array
     {
+        $whitelist = (bool) config('whitelist.enabled');
+        if ($whitelist) {
+            return [
+                'email' => ['required', 'string', 'email'],
+            ];
+        }
         return [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
@@ -37,14 +43,15 @@ class LoginRequest extends FormRequest
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-    public function validateCredentials(): User
+    public function validateCredentials(): \Illuminate\Contracts\Auth\Authenticatable
     {
         $this->ensureIsNotRateLimited();
 
-        /** @var User|null $user */
-        $user = Auth::getProvider()->retrieveByCredentials($this->only('email', 'password'));
+        $credentials = $this->only('email', 'password');
+        $user = Auth::getProvider()->retrieveByCredentials($credentials);
 
-        if (! $user || ! Auth::getProvider()->validateCredentials($user, $this->only('password'))) {
+        $valid = $user && Auth::getProvider()->validateCredentials($user, $credentials);
+        if (! $valid) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([

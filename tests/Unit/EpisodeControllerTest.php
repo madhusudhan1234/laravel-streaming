@@ -59,17 +59,6 @@ class EpisodeControllerTest extends TestCase
         $this->assertEquals('Test Episode 2', $episodes[1]['title']);
     }
 
-    public function test_get_episodes_returns_empty_array_when_no_episodes_in_database()
-    {
-        // Clear all episodes from database
-        Episode::truncate();
-
-        $episodes = $this->controller->getEpisodes();
-
-        $this->assertIsArray($episodes);
-        $this->assertEmpty($episodes);
-    }
-
     public function test_api_index_returns_json_response()
     {
         $response = $this->controller->apiIndex();

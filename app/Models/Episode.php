@@ -32,4 +32,14 @@ class Episode extends Model
     {
         return str_starts_with($this->url ?? '', 'http');
     }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Episode $episode) {
+            if (! $episode->getAttribute('id')) {
+                $max = (int) (Episode::max('id') ?? 0);
+                $episode->setAttribute('id', $max + 1);
+            }
+        });
+    }
 }

@@ -3,4 +3,3 @@
 return [
     'admin' => env('ADMIN_DOMAIN'),
 ];
-
