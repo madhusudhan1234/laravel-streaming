@@ -12,13 +12,14 @@ RUN apk add --no-cache \
     curl \
     libpng-dev \
     libxml2-dev \
+    postgresql-dev \
     zip \
     unzip \
     oniguruma-dev \
     linux-headers
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mysqli mbstring exif pcntl bcmath gd
+RUN docker-php-ext-install pdo_mysql mysqli mbstring exif pcntl bcmath gd pdo_pgsql
 
 # Install PHP Redis extension via pecl
 RUN apk add --no-cache autoconf g++ make \
