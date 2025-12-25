@@ -10,8 +10,8 @@ use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 
-if (app()->runningUnitTests()) {
-    Route::withoutMiddleware([VerifyCsrfToken::class])->group(function () {
+Route::domain(config('domains.admin'))->group(function () {
+       Route::withoutMiddleware([VerifyCsrfToken::class])->group(function () {
         Route::middleware('guest')->group(function () {
             Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
             Route::post('login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
@@ -30,8 +30,7 @@ if (app()->runningUnitTests()) {
             Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
         });
     });
-} else {
-Route::domain(config('domains.admin'))->group(function () {
+
     Route::middleware('guest')->group(function () {
         Route::get('login', [AuthenticatedSessionController::class, 'create'])
             ->name('login');
@@ -75,4 +74,3 @@ Route::domain(config('domains.admin'))->group(function () {
     });
 
 });
-}
