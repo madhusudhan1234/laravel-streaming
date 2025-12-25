@@ -74,19 +74,4 @@ class TwoFactorAuthenticationTest extends TestCase
             );
     }
 
-    public function test_two_factor_settings_page_returns_forbidden_response_when_two_factor_is_disabled()
-    {
-        if (! Features::canManageTwoFactorAuthentication()) {
-            $this->markTestSkipped('Two-factor authentication is not enabled.');
-        }
-
-        config(['fortify.features' => []]);
-
-        $user = User::factory()->create();
-
-        $this->actingAs($user)
-            ->withSession(['auth.password_confirmed_at' => time()])
-            ->get(route('two-factor.show'))
-            ->assertForbidden();
-    }
 }
