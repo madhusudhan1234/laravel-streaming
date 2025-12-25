@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Laravel\Horizon\Horizon;
+use Illuminate\Support\Facades\Auth;
+use App\Auth\WhitelistUserProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -12,7 +14,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        Auth::provider('whitelist', function ($app, array $config) {
+            return new WhitelistUserProvider($config);
+        });
     }
 
     /**
