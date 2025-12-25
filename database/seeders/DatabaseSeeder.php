@@ -21,8 +21,10 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         // Seed episodes from JSON file
-        $this->call([
-            EpisodeSeeder::class,
-        ]);
+        if (! app()->runningUnitTests()) {
+            $this->call([
+                EpisodeSeeder::class,
+            ]);
+        }
     }
 }
