@@ -1,4 +1,5 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { useGlobalAudioManager } from './useGlobalAudioManager';
 
 export interface Episode {
     id: number;
@@ -25,6 +26,14 @@ export interface AudioState {
 
 export function useAudioStreaming(episode?: Episode) {
     const audioElement = ref<HTMLAudioElement | null>(null);
+
+    // Global audio manager for exclusive playback
+    const { registerPlayer } = useGlobalAudioManager();
+    const audioManager = registerPlayer(() => {
+        if (audioElement.value && !audioElement.value.paused) {
+            audioElement.value.pause();
+        }
+    });
 
     const audioState = reactive<AudioState>({
         isPlaying: false,
@@ -143,15 +152,18 @@ export function useAudioStreaming(episode?: Episode) {
 
         audioElement.value.addEventListener('play', () => {
             audioState.isPlaying = true;
+            audioManager.notifyPlay(episode?.id);
         });
 
         audioElement.value.addEventListener('pause', () => {
             audioState.isPlaying = false;
+            audioManager.notifyPause();
         });
 
         audioElement.value.addEventListener('ended', () => {
             audioState.isPlaying = false;
             audioState.currentTime = 0;
+            audioManager.notifyStop();
         });
 
         audioElement.value.addEventListener('error', (e) => {
@@ -189,6 +201,7 @@ export function useAudioStreaming(episode?: Episode) {
 
         try {
             // For streaming, we can start playing immediately
+            audioManager.notifyPlay(episode?.id);
             await audioElement.value.play();
         } catch (error) {
             audioState.error = 'Failed to play audio stream';
@@ -265,6 +278,7 @@ export function useAudioStreaming(episode?: Episode) {
             audioElement.value.src = '';
             audioElement.value = null;
         }
+        audioManager.unregister();
     };
 
     // Initialize with episode if provided
