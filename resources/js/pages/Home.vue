@@ -199,29 +199,13 @@
                                 Podcast Stats
                             </h3>
                             <div class="space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-gray-600"
-                                        >Total Episodes</span
-                                    >
-                                    <span class="font-semibold text-gray-900">{{
-                                        episodes.length
-                                    }}</span>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="text-gray-600"
-                                        >Total Duration</span
-                                    >
-                                    <span class="font-semibold text-gray-900">{{
-                                        totalDuration
-                                    }}</span>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="text-gray-600"
-                                        >Latest Episode</span
-                                    >
-                                    <span class="font-semibold text-gray-900">{{
-                                        latestEpisodeDate
-                                    }}</span>
+                                <div
+                                    v-for="stat in podcastStats"
+                                    :key="stat.label"
+                                    class="flex items-center justify-between"
+                                >
+                                    <span class="text-gray-600">{{ stat.label }}</span>
+                                    <span class="font-semibold text-gray-900">{{ stat.value }}</span>
                                 </div>
                             </div>
                         </div>
@@ -286,39 +270,51 @@
 </template>
 
 <script setup lang="ts">
-// import AudioPlayer from '@/components/AudioPlayer.vue';
+// #######################################
+// Imports
+// #######################################
+
 import EpisodeList from '@/components/EpisodeList.vue';
 import { useAudioPlayer, type Episode } from '@/composables/useAudioPlayer';
 import { computed, onMounted, ref } from 'vue';
+
+// #######################################
+// Types
+// #######################################
 
 interface Props {
     episodes: Episode[];
 }
 
-const props = defineProps<Props>();
+// #######################################
+// Utility Functions
+// #######################################
 
-// Audio player composable
-const { audioState, progress, initAudio, play, pause, seekToPercentage } =
-    useAudioPlayer();
+// ##############################
+// Numeric and Date Formatting
+// ##############################
 
-// Format duration from decimal minutes to MM:SS format
+const parseNumeric = (value: number | string | null | undefined): number => {
+    if (value == null) return 0;
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    return isNaN(num) ? 0 : num;
+};
+
 const formatDuration = (
     durationInMinutes: number | string | null | undefined,
 ): string => {
-    // Convert string to number if needed
-    const duration =
-        typeof durationInMinutes === 'string'
-            ? parseFloat(durationInMinutes)
-            : durationInMinutes;
+    const duration = parseNumeric(durationInMinutes);
 
-    if (!duration || duration <= 0 || isNaN(duration)) {
+    if (duration <= 0) {
         return '0:00';
     }
 
     const totalMinutes = Math.floor(duration);
     const seconds = Math.round((duration - totalMinutes) * 60);
 
+    // ####################
     // Handle case where seconds round to 60
+    // ####################
     if (seconds === 60) {
         return `${totalMinutes + 1}:00`;
     }
@@ -326,17 +322,62 @@ const formatDuration = (
     return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-// Computed properties
+const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    });
+};
+
+// ##############################
+// Episode Helpers
+// ##############################
+
+const getLatestEpisode = (episodes: Episode[]): Episode | null => {
+    if (episodes.length === 0) return null;
+    return episodes.reduce((latest, episode) =>
+        new Date(episode.published_date) > new Date(latest.published_date)
+            ? episode
+            : latest
+    );
+};
+
+// #######################################
+// Props and State
+// #######################################
+
+const props = defineProps<Props>();
+
+// ##############################
+// Audio Player State
+// ##############################
+
+const { audioState, progress, initAudio, play, pause, seekToPercentage } =
+    useAudioPlayer();
+
+const currentEpisode = ref<Episode | null>(null);
+
+const isCurrentEpisode = (episode: Episode): boolean => {
+    return currentEpisode.value?.id === episode.id;
+};
+
+// ##############################
+// Embed Modal State
+// ##############################
+
+const showEmbedModal = ref(false);
+const embedCode = ref('');
+const embedCodeTextarea = ref<HTMLTextAreaElement>();
+
+// #######################################
+// Computed Properties
+// #######################################
+
 const totalDuration = computed(() => {
     const totalMinutes = props.episodes.reduce((total, episode) => {
-        // Duration is now stored as decimal minutes
-        if (!episode.duration) return total;
-
-        const duration =
-            typeof episode.duration === 'string'
-                ? parseFloat(episode.duration)
-                : episode.duration;
-        return total + (duration || 0);
+        return total + parseNumeric(episode.duration);
     }, 0);
 
     const hours = Math.floor(totalMinutes / 60);
@@ -349,33 +390,63 @@ const totalDuration = computed(() => {
 });
 
 const latestEpisodeDate = computed(() => {
-    if (props.episodes.length === 0) return 'N/A';
-
-    const latest = props.episodes.reduce((latest, episode) => {
-        return new Date(episode.published_date) >
-            new Date(latest.published_date)
-            ? episode
-            : latest;
-    });
-
-    return formatDate(latest.published_date);
+    const latest = getLatestEpisode(props.episodes);
+    return latest ? formatDate(latest.published_date) : 'N/A';
 });
 
-// Current episode state
-const currentEpisode = ref<Episode | null>(null);
+const podcastStats = computed(() => [
+    { label: 'Total Episodes', value: props.episodes.length },
+    { label: 'Total Duration', value: totalDuration.value },
+    { label: 'Latest Episode', value: latestEpisodeDate.value },
+]);
 
-// Embed modal state
-const showEmbedModal = ref(false);
-const embedCode = ref('');
-const embedCodeTextarea = ref<HTMLTextAreaElement>();
+// #######################################
+// Event Handlers
+// #######################################
 
-// Methods
+// ##############################
+// Episode Selection and Playback
+// ##############################
+
 const handleEpisodeSelect = (episode: Episode) => {
-    if (currentEpisode.value?.id !== episode.id) {
+    if (!isCurrentEpisode(episode)) {
         currentEpisode.value = episode;
         initAudio(episode);
     }
 };
+
+const handleEpisodePlay = (episode: Episode) => {
+    // ####################
+    // Toggle play/pause for current episode
+    // ####################
+    if (isCurrentEpisode(episode)) {
+        if (audioState.isPlaying) {
+            pause();
+        } else {
+            play();
+        }
+        return;
+    }
+
+    // ####################
+    // Switch to new episode and play
+    // ####################
+    currentEpisode.value = episode;
+    initAudio(episode);
+    setTimeout(() => {
+        play();
+    }, 100);
+};
+
+const handleEpisodeSeek = (episode: Episode, percentage: number) => {
+    if (isCurrentEpisode(episode)) {
+        seekToPercentage(percentage);
+    }
+};
+
+// ##############################
+// Embed Modal
+// ##############################
 
 const showEmbedCode = async () => {
     if (!currentEpisode.value) return;
@@ -397,67 +468,39 @@ const closeEmbedModal = () => {
 };
 
 const copyEmbedCode = async () => {
-    if (embedCodeTextarea.value) {
-        try {
-            await navigator.clipboard.writeText(embedCode.value);
-            closeEmbedModal();
-        } catch {
-            // Fallback for older browsers
-            embedCodeTextarea.value.select();
-            document.execCommand('copy');
-            closeEmbedModal();
-        }
+    if (!embedCodeTextarea.value) return;
+
+    try {
+        await navigator.clipboard.writeText(embedCode.value);
+        closeEmbedModal();
+    } catch {
+        // ####################
+        // Fallback for older browsers
+        // ####################
+        embedCodeTextarea.value.select();
+        document.execCommand('copy');
+        closeEmbedModal();
     }
 };
 
-const handleEpisodePlay = (episode: Episode) => {
-    if (currentEpisode.value?.id === episode.id) {
-        if (audioState.isPlaying) {
-            pause();
-        } else {
-            play();
-        }
-    } else {
-        currentEpisode.value = episode;
-        initAudio(episode);
-        // Small delay to ensure audio is initialized before playing
-        setTimeout(() => {
-            play();
-        }, 100);
-    }
-};
+// #######################################
+// Lifecycle
+// #######################################
 
-const handleEpisodeSeek = (episode: Episode, percentage: number) => {
-    if (currentEpisode.value?.id === episode.id) {
-        seekToPercentage(percentage);
-    }
-};
-
-const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-    });
-};
-
-// Initialize with latest episode on mount (Episode 31)
 onMounted(() => {
-    if (props.episodes.length > 0) {
-        // Find the latest episode (highest ID or most recent date)
-        const latestEpisode = props.episodes.reduce((latest, episode) => {
-            return episode.id > latest.id ? episode : latest;
-        });
-        // Don't auto-play, just initialize the latest episode
-        currentEpisode.value = latestEpisode;
-        initAudio(latestEpisode);
+    const latest = getLatestEpisode(props.episodes);
+    if (latest) {
+        currentEpisode.value = latest;
+        initAudio(latest);
     }
 });
 </script>
 
 <style scoped>
-/* Line clamp utility */
+/* #######################################
+   Utility Classes
+   ####################################### */
+
 .line-clamp-3 {
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -465,14 +508,24 @@ onMounted(() => {
     overflow: hidden;
 }
 
-/* Responsive grid adjustments */
+/* #######################################
+   Responsive Adjustments
+   ####################################### */
+
 @media (max-width: 1024px) {
     .sticky {
         position: static;
     }
 }
 
-/* High contrast support */
+/* #######################################
+   Accessibility
+   ####################################### */
+
+/* ##############################
+   High Contrast Support
+   ############################## */
+
 @media (prefers-contrast: high) {
     .bg-gradient-to-br {
         background: white;
@@ -483,7 +536,10 @@ onMounted(() => {
     }
 }
 
-/* Reduced motion support */
+/* ##############################
+   Reduced Motion Support
+   ############################## */
+
 @media (prefers-reduced-motion: reduce) {
     * {
         transition: none !important;
@@ -491,7 +547,10 @@ onMounted(() => {
     }
 }
 
-/* Focus management for accessibility */
+/* ##############################
+   Focus Management
+   ############################## */
+
 .focus-within\:ring-2:focus-within {
     outline: 2px solid #3b82f6;
     outline-offset: 2px;

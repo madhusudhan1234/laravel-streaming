@@ -2,8 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Episode;
-use App\Repositories\EpisodeRepository;
+// #######################################
+// IMPORTS
+// #######################################
+
+// ##############################
+// Framework
+// ##############################
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -11,23 +17,195 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Bus;
 use Inertia\Inertia;
+
+// ##############################
+// Application
+// ##############################
+
+use App\Models\Episode;
+use App\Repositories\EpisodeRepository;
 use App\Jobs\AppendEpisode;
 use App\Jobs\SyncEpisodesToRedis;
 use App\Jobs\DeleteEpisodeFromGithub;
 
 class EpisodeController extends Controller
 {
-    public function index()
-    {
-        $episodes = $this->getEpisodes();
+    // #######################################
+    // STORAGE HELPERS
+    // #######################################
 
-        return Inertia::render('Home', [
-            'episodes' => $episodes,
-        ]);
+    // ##############################
+    // R2 Configuration
+    // ##############################
+
+    private function shouldUseR2(): bool
+    {
+        return config('filesystems.default') === 'r2' ||
+               (config('filesystems.disks.r2.key') && config('filesystems.disks.r2.bucket'));
+    }
+
+    private function isR2Ready(): bool
+    {
+        $r2Config = config('filesystems.disks.r2');
+        return !empty($r2Config['key']) &&
+               !empty($r2Config['secret']) &&
+               !empty($r2Config['bucket']) &&
+               !empty($r2Config['endpoint']);
+    }
+
+    // ##############################
+    // File Upload
+    // ##############################
+
+    private function uploadAudioFile($audioFile, string $filename): array
+    {
+        $storagePath = 'episodes/' . $filename;
+
+        // ####################
+        // R2 Cloud Storage
+        // ####################
+
+        if ($this->shouldUseR2()) {
+            if (! $this->isR2Ready()) {
+                return ['success' => false, 'error' => 'Cloud storage configuration is incomplete'];
+            }
+
+            try {
+                $uploadSuccess = Storage::disk('r2')->putFileAs('episodes', $audioFile, $filename, 'public');
+
+                if (! $uploadSuccess) {
+                    Log::error('R2 upload returned false', [
+                        'filename' => $filename,
+                        'storage_path' => $storagePath,
+                    ]);
+                    return ['success' => false, 'error' => 'Failed to upload audio file to cloud storage'];
+                }
+
+                return ['success' => true, 'url' => '/' . $storagePath, 'disk' => 'r2'];
+            } catch (\Exception $e) {
+                return ['success' => false, 'error' => 'Failed to upload audio file to cloud storage: ' . $e->getMessage()];
+            }
+        }
+
+        // ####################
+        // Local Storage
+        // ####################
+
+        $audioDir = public_path('audios');
+        if (! is_dir($audioDir)) {
+            mkdir($audioDir, 0755, true);
+        }
+
+        $uploadSuccess = $audioFile->move($audioDir, $filename);
+
+        if (! $uploadSuccess) {
+            Log::error('Failed to upload file to local storage', [
+                'filename' => $filename,
+                'destination' => $audioDir,
+            ]);
+            return ['success' => false, 'error' => 'Failed to upload audio file'];
+        }
+
+        return ['success' => true, 'url' => '/audios/' . $filename, 'disk' => 'local'];
+    }
+
+    // ##############################
+    // File Deletion
+    // ##############################
+
+    private function deleteStoredFile(string $url): void
+    {
+        try {
+            $isR2 = str_starts_with($url, 'http') || str_starts_with($url, '/episodes/');
+            if ($isR2) {
+                if ($this->isR2Ready()) {
+                    $path = str_starts_with($url, 'http')
+                        ? ltrim(parse_url($url, PHP_URL_PATH) ?? '', '/')
+                        : ltrim($url, '/');
+                    Storage::disk('r2')->delete($path);
+                } else {
+                    Log::warning('R2 deletion skipped due to missing configuration');
+                }
+            } else {
+                $filePath = public_path(ltrim($url, '/'));
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to delete file from storage: ' . $e->getMessage());
+        }
+    }
+
+    // #######################################
+    // AUDIO METADATA HELPERS
+    // #######################################
+
+    private function extractAudioDuration($audioFile): ?float
+    {
+        try {
+            $tempFilePath = $audioFile->getRealPath();
+            $getID3 = new \getID3;
+            $fileInfo = $getID3->analyze($tempFilePath);
+            if (isset($fileInfo['playtime_seconds'])) {
+                return round($fileInfo['playtime_seconds'] / 60, 2);
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to extract audio duration: ' . $e->getMessage());
+        }
+        return null;
+    }
+
+    private function formatFileSize($bytes)
+    {
+        if ($bytes == 0) {
+            return '0 B';
+        }
+
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $base = log($bytes, 1024);
+        $unitIndex = floor($base);
+
+        $unitIndex = min($unitIndex, count($units) - 1);
+
+        $size = round(pow(1024, $base - $unitIndex), 2);
+
+        return $size.' '.$units[$unitIndex];
+    }
+
+    // #######################################
+    // DATA ACCESS HELPERS
+    // #######################################
+
+    private function findEpisode(int $id): array|Episode|null
+    {
+        if (! app()->environment('testing')) {
+            $episode = EpisodeRepository::find($id);
+            if ($episode) {
+                return $episode;
+            }
+        }
+        return Episode::find($id);
+    }
+
+    private function getEpisodesFromRedis(): array
+    {
+        $raw = Redis::get('episodes:all');
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+        return [];
     }
 
     public function getEpisodes()
     {
+        // ####################
+        // Check for Test Episodes
+        // ####################
+
         try {
             $testSpecific = Episode::whereIn('filename', ['test-episode-1.mp3', 'test-episode-2.m4a'])
                 ->orderBy('id')
@@ -40,14 +218,11 @@ class EpisodeController extends Controller
             // ignore
         }
 
-        $raw = Redis::get('episodes:all');
-        $episodes = [];
-        if (is_string($raw)) {
-            $decoded = json_decode($raw, true);
-            if (is_array($decoded)) {
-                $episodes = $decoded;
-            }
-        }
+        // ####################
+        // Load from Redis or Database
+        // ####################
+
+        $episodes = $this->getEpisodesFromRedis();
         if (empty($episodes)) {
             try {
                 return Episode::orderBy('id')->get()->toArray();
@@ -58,31 +233,17 @@ class EpisodeController extends Controller
         return $episodes;
     }
 
-    public function apiIndex()
+    // #######################################
+    // VIEW CONTROLLERS
+    // #######################################
+
+    public function index()
     {
         $episodes = $this->getEpisodes();
 
-        return response()->json([
+        return Inertia::render('Home', [
             'episodes' => $episodes,
-            'total' => count($episodes),
         ]);
-    }
-
-    public function show($id)
-    {
-        $episode = null;
-        if (! app()->environment('testing')) {
-            $episode = EpisodeRepository::find((int) $id);
-        }
-        if (! $episode) {
-            $episode = Episode::find($id);
-        }
-
-        if (! $episode) {
-            abort(404, 'Episode not found');
-        }
-
-        return response()->json($episode);
     }
 
     public function embed($id)
@@ -100,14 +261,7 @@ class EpisodeController extends Controller
 
     public function dashboard()
     {
-        $raw = Redis::get('episodes:all');
-        $episodes = [];
-        if (is_string($raw)) {
-            $decoded = json_decode($raw, true);
-            if (is_array($decoded)) {
-                $episodes = $decoded;
-            }
-        }
+        $episodes = $this->getEpisodesFromRedis();
         usort($episodes, fn ($a, $b) => ($b['id'] ?? 0) <=> ($a['id'] ?? 0));
 
         return Inertia::render('EpisodeManagement', [
@@ -115,14 +269,64 @@ class EpisodeController extends Controller
         ]);
     }
 
+    // #######################################
+    // API CONTROLLERS
+    // #######################################
+
+    public function apiIndex()
+    {
+        $episodes = $this->getEpisodes();
+
+        return response()->json([
+            'episodes' => $episodes,
+            'total' => count($episodes),
+        ]);
+    }
+
+    public function show($id)
+    {
+        $episode = $this->findEpisode((int) $id);
+
+        if (! $episode) {
+            abort(404, 'Episode not found');
+        }
+
+        return response()->json($episode);
+    }
+
+    public function edit($episode)
+    {
+        $data = $this->findEpisode((int) $episode);
+        if (! $data) {
+            return response()->json(['message' => 'Episode not found'], 404);
+        }
+        return response()->json($data);
+    }
+
+    // #######################################
+    // CRUD OPERATIONS
+    // #######################################
+
+    // ##############################
+    // Sync
+    // ##############################
+
     public function sync()
     {
         SyncEpisodesToRedis::dispatch();
         return redirect()->route('episodes.dashboard')->with('success', 'Episodes sync queued');
     }
 
+    // ##############################
+    // Create
+    // ##############################
+
     public function store(Request $request)
     {
+        // ####################
+        // Validate Request
+        // ####################
+
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -130,6 +334,10 @@ class EpisodeController extends Controller
         ]);
 
         try {
+            // ####################
+            // Validate Audio File
+            // ####################
+
             if (! $request->hasFile('audio_file')) {
                 Log::error('No audio file provided in request');
 
@@ -142,80 +350,27 @@ class EpisodeController extends Controller
                 return redirect()->back()->withErrors(['error' => 'The audio file failed to upload. Error: '.$audioFile->getErrorMessage()]);
             }
 
-            $filename = time().'_'.$audioFile->getClientOriginalName();
-            $storagePath = 'episodes/'.$filename;
-
-            $useR2 = config('filesystems.default') === 'r2' ||
-                     (config('filesystems.disks.r2.key') && config('filesystems.disks.r2.bucket'));
-
-
-            if ($useR2) {
-                $r2Config = config('filesystems.disks.r2');
-                if (empty($r2Config['key']) || empty($r2Config['secret']) || empty($r2Config['bucket']) || empty($r2Config['endpoint'])) {
-                    Log::error('R2 configuration incomplete', [
-                        'key_present' => ! empty($r2Config['key']),
-                        'secret_present' => ! empty($r2Config['secret']),
-                        'bucket_present' => ! empty($r2Config['bucket']),
-                        'endpoint_present' => ! empty($r2Config['endpoint']),
-                    ]);
-
-                    return redirect()->back()->withErrors(['error' => 'Cloud storage configuration is incomplete']);
-                }
-
-                try {
-
-                    $uploadSuccess = Storage::disk('r2')->putFileAs('episodes', $audioFile, $filename, 'public');
-
-                    if (! $uploadSuccess) {
-                        Log::error('R2 upload returned false', [
-                            'filename' => $filename,
-                            'storage_path' => $storagePath,
-                        ]);
-
-                        return redirect()->back()->withErrors(['error' => 'Failed to upload audio file to cloud storage']);
-                    }
-
-                    $fileUrl = '/'.$storagePath;
-
-
-                } catch (\Exception $e) {
-                    return redirect()->back()->withErrors(['error' => 'Failed to upload audio file to cloud storage: '.$e->getMessage()]);
-                }
-            } else {
-                $audioDir = public_path('audios');
-                if (! is_dir($audioDir)) {
-                    mkdir($audioDir, 0755, true);
-                }
-
-                $uploadSuccess = $audioFile->move($audioDir, $filename);
-
-                if (! $uploadSuccess) {
-                    Log::error('Failed to upload file to local storage', [
-                        'filename' => $filename,
-                        'destination' => $audioDir,
-                    ]);
-
-                    return redirect()->back()->withErrors(['error' => 'Failed to upload audio file']);
-                }
-
-                $fileUrl = '/audios/'.$filename;
-            }
+            // ####################
+            // Extract Metadata and Upload
+            // ####################
 
             $fileSize = $audioFile->getSize();
             $format = $audioFile->getClientOriginalExtension();
+            $duration = $this->extractAudioDuration($audioFile);
 
-            $duration = null;
-            try {
-                $tempFilePath = $audioFile->getRealPath();
-                $getID3 = new \getID3;
-                $fileInfo = $getID3->analyze($tempFilePath);
-                if (isset($fileInfo['playtime_seconds'])) {
-                    $duration = round($fileInfo['playtime_seconds'] / 60, 2);
-                }
-            } catch (\Exception $e) {
-                // Log the error but don't fail the episode creation
-                Log::warning('Failed to extract audio duration: '.$e->getMessage());
+            $filename = time().'_'.$audioFile->getClientOriginalName();
+            $uploadResult = $this->uploadAudioFile($audioFile, $filename);
+
+            if (! $uploadResult['success']) {
+                return redirect()->back()->withErrors(['error' => $uploadResult['error']]);
             }
+
+            $fileUrl = $uploadResult['url'];
+            $useR2 = $uploadResult['disk'] === 'r2';
+
+            // ####################
+            // Save Episode
+            // ####################
 
             if (! app()->environment('testing')) {
                 $now = now()->format('Y-m-d H:i:s');
@@ -254,43 +409,34 @@ class EpisodeController extends Controller
             return redirect()->route('episodes.dashboard')->with('success', 'Episode creation queued');
 
         } catch (\Exception $e) {
+            // ####################
+            // Error Handling and Cleanup
+            // ####################
+
             Log::error('Exception during episode creation', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            if (isset($useR2) && isset($storagePath) && isset($filename)) {
-                try {
-                    if ($useR2) {
-                        Storage::disk('r2')->delete($storagePath);
-                    } elseif (file_exists(public_path('audios/'.$filename))) {
-                        unlink(public_path('audios/'.$filename));
-                    }
-                } catch (\Exception $cleanupException) {
-                    Log::warning('Failed to clean up uploaded file: '.$cleanupException->getMessage());
-                }
+            if (isset($fileUrl)) {
+                $this->deleteStoredFile($fileUrl);
             }
 
             return redirect()->back()->withErrors(['error' => 'Error creating episode: '.$e->getMessage()]);
         }
     }
 
-    public function edit($episode)
-    {
-        if (! app()->environment('testing')) {
-            $data = EpisodeRepository::find((int) $episode);
-            if (! $data) {
-                return response()->json(['message' => 'Episode not found'], 404);
-            }
-            return response()->json($data);
-        }
-        $model = Episode::find($episode);
-        return $model ? response()->json($model) : response()->json(['message' => 'Episode not found'], 404);
-    }
+    // ##############################
+    // Update
+    // ##############################
 
     public function update(\App\Http\Requests\UpdateEpisodeRequest $request, $episode)
     {
         try {
+            // ####################
+            // Prepare Base Update Data
+            // ####################
+
             $updateData = [
                 'title' => $request->title,
                 'description' => $request->description,
@@ -298,100 +444,56 @@ class EpisodeController extends Controller
                 'updated_at' => now()->format('Y-m-d H:i:s'),
             ];
 
+            // ####################
+            // Handle Audio File Replacement
+            // ####################
+
             if ($request->hasFile('audio_file')) {
-                $current = app()->environment('testing') ? Episode::find($episode) : EpisodeRepository::find((int) $episode);
-                if ($current && ($current['url'] ?? $current->url)) {
-                    try {
-                        $currentUrl = is_array($current) ? ($current['url'] ?? '') : $current->url;
-                        if (is_string($currentUrl) && str_starts_with($currentUrl, 'http')) {
-                            $urlParts = parse_url($currentUrl);
-                            $path = ltrim($urlParts['path'] ?? '', '/');
-                            Storage::disk('r2')->delete($path);
-                        } else {
-                            $oldFilePath = public_path(ltrim($currentUrl, '/'));
-                            if (file_exists($oldFilePath)) {
-                                unlink($oldFilePath);
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        Log::warning('Failed to delete old file: '.$e->getMessage());
+
+                // ##### Delete Old File
+                $current = $this->findEpisode((int) $episode);
+                if ($current) {
+                    $currentUrl = is_array($current) ? ($current['url'] ?? '') : $current->url;
+                    if ($currentUrl) {
+                        $this->deleteStoredFile($currentUrl);
                     }
                 }
 
+                // ##### Upload New File
                 $audioFile = $request->file('audio_file');
-                $filename = time().'_'.$audioFile->getClientOriginalName();
-                $storagePath = 'episodes/'.$filename;
-
-                $useR2 = config('filesystems.default') === 'r2' ||
-                         (config('filesystems.disks.r2.key') && config('filesystems.disks.r2.bucket'));
-
-                if ($useR2) {
-                    $r2Config = config('filesystems.disks.r2');
-                    if (empty($r2Config['key']) || empty($r2Config['secret']) || empty($r2Config['bucket']) || empty($r2Config['endpoint'])) {
-                        return redirect()->back()->withErrors(['error' => 'Cloud storage configuration is incomplete']);
-                    }
-
-                    try {
-                        $uploadSuccess = Storage::disk('r2')->putFileAs('episodes', $audioFile, $filename, 'public');
-
-                        if (! $uploadSuccess) {
-                            return redirect()->back()->withErrors(['error' => 'Failed to upload audio file to cloud storage']);
-                        }
-
-                        Log::info('R2 upload successful for update', [
-                            'filename' => $filename,
-                            'storage_path' => $storagePath,
-                        ]);
-
-                        $fileUrl = '/'.$storagePath;
-                    } catch (\Exception $e) {
-                        return redirect()->back()->withErrors(['error' => 'Failed to upload audio file to cloud storage: '.$e->getMessage()]);
-                    }
-                } else {
-                    $audioDir = public_path('audios');
-                    if (! is_dir($audioDir)) {
-                        mkdir($audioDir, 0755, true);
-                    }
-
-                    $uploadSuccess = $audioFile->move($audioDir, $filename);
-
-                    if (! $uploadSuccess) {
-                        return redirect()->back()->withErrors(['error' => 'Failed to upload audio file']);
-                    }
-
-                    $fileUrl = '/audios/'.$filename;
-                }
-
-                // Get file info
                 $fileSize = $audioFile->getSize();
                 $format = $audioFile->getClientOriginalExtension();
+                $duration = $this->extractAudioDuration($audioFile);
 
-                $duration = null;
-                try {
-                    $tempFilePath = $audioFile->getRealPath();
-                    $getID3 = new \getID3;
-                    $fileInfo = $getID3->analyze($tempFilePath);
-                    if (isset($fileInfo['playtime_seconds'])) {
-                        $duration = round($fileInfo['playtime_seconds'] / 60, 2);
-                    }
-                } catch (\Exception $e) {
-                    // Log the error but don't fail the episode update
-                    Log::warning('Failed to extract audio duration: '.$e->getMessage());
+                $filename = time().'_'.$audioFile->getClientOriginalName();
+                $uploadResult = $this->uploadAudioFile($audioFile, $filename);
+
+                if (! $uploadResult['success']) {
+                    return redirect()->back()->withErrors(['error' => $uploadResult['error']]);
                 }
 
+                // ##### Update File Data
                 $updateData['filename'] = $filename;
-                $updateData['storage_disk'] = $useR2 ? 'r2' : 'local';
-                $updateData['url'] = $fileUrl;
+                $updateData['storage_disk'] = $uploadResult['disk'];
+                $updateData['url'] = $uploadResult['url'];
                 $updateData['file_size'] = $this->formatFileSize($fileSize);
                 $updateData['format'] = strtoupper($format);
                 $updateData['duration'] = $duration;
             }
 
+            // ####################
+            // Persist Update
+            // ####################
+
             if (! app()->environment('testing')) {
+
+                // ##### Update Repository
                 $updated = EpisodeRepository::update((int) $episode, $updateData);
                 if (! $updated) {
                     return redirect()->back()->withErrors(['error' => 'Error updating episode']);
                 }
+
+                // ##### Sync to GitHub
                 $token = config('episodes.token');
                 $owner = config('episodes.owner');
                 $repo = config('episodes.name');
@@ -438,45 +540,31 @@ class EpisodeController extends Controller
         }
     }
 
+    // ##############################
+    // Delete
+    // ##############################
+
     public function destroy($episode)
     {
         try {
-            $current = app()->environment('testing') ? Episode::find($episode) : EpisodeRepository::find((int) $episode);
+            // ####################
+            // Delete File from Storage
+            // ####################
+
+            $current = $this->findEpisode((int) $episode);
             if ($current) {
-                try {
-                    $currentUrl = is_array($current) ? ($current['url'] ?? '') : $current->url;
-                    $isR2 = is_string($currentUrl) && (str_starts_with($currentUrl, 'http') || str_starts_with($currentUrl, '/episodes/'));
-                    if ($isR2) {
-                        $r2Config = config('filesystems.disks.r2');
-                        $r2Ready = ! empty($r2Config['key']) && ! empty($r2Config['secret']) && ! empty($r2Config['bucket']) && ! empty($r2Config['endpoint']);
-                        if ($r2Ready) {
-                            $path = str_starts_with($currentUrl, 'http')
-                                ? ltrim(parse_url($currentUrl, PHP_URL_PATH) ?? '', '/')
-                                : ltrim($currentUrl, '/');
-                            Storage::disk('r2')->delete($path);
-                        } else {
-                            Log::warning('R2 deletion skipped due to missing configuration');
-                        }
-                    } else {
-                        $filePath = public_path(ltrim($currentUrl, '/'));
-                        if (file_exists($filePath)) {
-                            unlink($filePath);
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('Failed to delete file from storage: '.$e->getMessage());
+                $currentUrl = is_array($current) ? ($current['url'] ?? '') : $current->url;
+                if ($currentUrl) {
+                    $this->deleteStoredFile($currentUrl);
                 }
             }
 
+            // ####################
+            // Delete Episode Record
+            // ####################
+
             if (! app()->environment('testing')) {
-                $raw = Redis::get('episodes:all');
-                $episodes = [];
-                if (is_string($raw)) {
-                    $decoded = json_decode($raw, true);
-                    if (is_array($decoded)) {
-                        $episodes = $decoded;
-                    }
-                }
+                $episodes = $this->getEpisodesFromRedis();
                 $episodes = array_values(array_filter($episodes, function ($ep) use ($episode) {
                     return intval($ep['id'] ?? 0) !== intval($episode);
                 }));
@@ -506,22 +594,5 @@ class EpisodeController extends Controller
                 'message' => 'Error deleting episode: '.$e->getMessage(),
             ], 500);
         }
-    }
-
-    private function formatFileSize($bytes)
-    {
-        if ($bytes == 0) {
-            return '0 B';
-        }
-
-        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        $base = log($bytes, 1024);
-        $unitIndex = floor($base);
-
-        $unitIndex = min($unitIndex, count($units) - 1);
-
-        $size = round(pow(1024, $base - $unitIndex), 2);
-
-        return $size.' '.$units[$unitIndex];
     }
 }

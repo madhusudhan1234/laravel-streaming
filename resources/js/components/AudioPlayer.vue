@@ -353,6 +353,10 @@ import {
 } from '@/composables/useAudioStreaming';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
+// #######################################
+// Types
+// #######################################
+
 interface Props {
     episode?: Episode | null;
     episodes?: Episode[];
@@ -362,6 +366,10 @@ interface Emits {
     (e: 'episodeChange', episode: Episode): void;
 }
 
+// #######################################
+// Props and Emits
+// #######################################
+
 const props = withDefaults(defineProps<Props>(), {
     episode: null,
     episodes: () => [],
@@ -369,7 +377,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>();
 
-// Audio streaming composable
+// #######################################
+// Audio Streaming
+// #######################################
+
 const {
     audioState,
     progress,
@@ -382,17 +393,22 @@ const {
     mute,
 } = useAudioStreaming();
 
-// Embed modal state
-const showEmbedModal = ref(false);
-const embedCode = ref('');
-const embedCodeTextarea = ref<HTMLTextAreaElement>();
+// #######################################
+// Waveform Display
+// #######################################
 
-// Waveform refs and state
+// ##############################
+// Waveform State
+// ##############################
+
 const waveformContainer = ref<HTMLElement>();
 const hoverIndex = ref(-1);
-
-// Waveform configuration
 const totalBars = 180;
+
+// ##############################
+// Waveform Computed Properties
+// ##############################
+
 const barWidth = computed(() => {
     if (!waveformContainer.value) return 2;
     const containerWidth = waveformContainer.value.offsetWidth - 32; // Account for padding
@@ -402,16 +418,21 @@ const barWidth = computed(() => {
     );
 });
 
-// Generate waveform bars with realistic audio-like pattern
 const waveformBars = computed(() => {
     const bars = [];
     for (let i = 0; i < totalBars; i++) {
-        // Create multi-layer wave algorithm similar to embed player
+        // ####################
+        // Create multi-layer wave algorithm
+        // ####################
+
         const mainWave = Math.sin(i * 0.08) * 0.4;
         const secondaryWave = Math.sin(i * 0.23) * 0.25;
         const detailWave = Math.sin(i * 0.47) * 0.15;
 
-        // Combine waves and add randomness
+        // ####################
+        // Combine waves and scale
+        // ####################
+
         const combined = mainWave + secondaryWave + detailWave;
         const randomness = (Math.random() - 0.5) * 0.3;
 
@@ -431,7 +452,10 @@ const waveformBars = computed(() => {
     return bars;
 });
 
-// Progress calculations for waveform
+// ##############################
+// Progress Calculations
+// ##############################
+
 const progressBarIndex = computed(() => {
     return Math.floor((progress.value / 100) * totalBars);
 });
@@ -441,114 +465,100 @@ const progressWithinBar = computed(() => {
     return (exactProgress - Math.floor(exactProgress)) * 100;
 });
 
-// Episode navigation
-const currentEpisodeIndex = computed(() => {
-    if (!props.episode || !props.episodes.length) return -1;
-    return props.episodes.findIndex((ep) => ep.id === props.episode?.id);
-});
+// ##############################
+// Waveform Event Handlers
+// ##############################
 
-const hasPrevious = computed(() => currentEpisodeIndex.value > 0);
-const hasNext = computed(
-    () =>
-        currentEpisodeIndex.value < props.episodes.length - 1 &&
-        currentEpisodeIndex.value !== -1,
-);
-
-// Watch for episode changes
-watch(
-    () => props.episode,
-    (newEpisode) => {
-        if (newEpisode) {
-            initAudio(newEpisode);
-        }
-    },
-    { immediate: true },
-);
-
-// Methods
-const handleWaveformClick = (event: MouseEvent) => {
-    if (!waveformContainer.value || audioState.duration === 0) return;
-
+const getWaveformPercentage = (event: MouseEvent): number | null => {
+    if (!waveformContainer.value) return null;
     const rect = waveformContainer.value.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const percentage = (clickX / rect.width) * 100;
-    seekToPercentage(Math.max(0, Math.min(100, percentage)));
+    const x = event.clientX - rect.left;
+    return (x / rect.width) * 100;
+};
+
+const handleWaveformClick = (event: MouseEvent) => {
+    if (audioState.duration === 0) return;
+    const percentage = getWaveformPercentage(event);
+    if (percentage !== null) {
+        seekToPercentage(Math.max(0, Math.min(100, percentage)));
+    }
 };
 
 const handleWaveformHover = (event: MouseEvent) => {
-    if (!waveformContainer.value) return;
-
-    const rect = waveformContainer.value.getBoundingClientRect();
-    const hoverX = event.clientX - rect.left;
-    const percentage = (hoverX / rect.width) * 100;
-    hoverIndex.value = Math.floor((percentage / 100) * totalBars);
+    const percentage = getWaveformPercentage(event);
+    if (percentage !== null) {
+        hoverIndex.value = Math.floor((percentage / 100) * totalBars);
+    }
 };
 
 const handleWaveformLeave = () => {
     hoverIndex.value = -1;
 };
 
+// #######################################
+// Episode Navigation
+// #######################################
+
+const currentEpisodeIndex = computed(() => {
+    if (!props.episode || !props.episodes.length) return -1;
+    return props.episodes.findIndex((ep) => ep.id === props.episode?.id);
+});
+
+const canNavigate = (offset: number): boolean => {
+    if (currentEpisodeIndex.value === -1) return false;
+    const targetIndex = currentEpisodeIndex.value + offset;
+    return targetIndex >= 0 && targetIndex < props.episodes.length;
+};
+
+const hasPrevious = computed(() => canNavigate(-1));
+const hasNext = computed(() => canNavigate(1));
+
+const navigateEpisode = (offset: number) => {
+    const targetIndex = currentEpisodeIndex.value + offset;
+    const canNav = targetIndex >= 0 && targetIndex < props.episodes.length;
+    if (canNav && currentEpisodeIndex.value !== -1) {
+        emit('episodeChange', props.episodes[targetIndex]);
+    }
+};
+
+const previousEpisode = () => navigateEpisode(-1);
+const nextEpisode = () => navigateEpisode(1);
+
+// #######################################
+// Playback Controls
+// #######################################
+
+// ##############################
+// Skip Controls
+// ##############################
+
+const skipBySeconds = (delta: number) => {
+    if (audioState.duration === 0) return;
+    const currentTime = (progress.value / 100) * audioState.duration;
+    const newTime = Math.max(0, Math.min(audioState.duration, currentTime + delta));
+    const newPercentage = (newTime / audioState.duration) * 100;
+    seekToPercentage(newPercentage);
+};
+
+const skipBackward = () => skipBySeconds(-10);
+const skipForward = () => skipBySeconds(10);
+
+// ##############################
+// Volume Control
+// ##############################
+
 const handleVolumeChange = (event: Event) => {
     const target = event.target as HTMLInputElement;
     setVolume(parseInt(target.value));
 };
 
-const previousEpisode = () => {
-    if (hasPrevious.value && props.episodes.length > 0) {
-        const prevEpisode = props.episodes[currentEpisodeIndex.value - 1];
-        emit('episodeChange', prevEpisode);
-    }
-};
+// #######################################
+// Embed Modal
+// #######################################
 
-const nextEpisode = () => {
-    if (hasNext.value && props.episodes.length > 0) {
-        const nextEpisode = props.episodes[currentEpisodeIndex.value + 1];
-        emit('episodeChange', nextEpisode);
-    }
-};
-
-// 10-second skip functions
-const skipBackward = () => {
-    if (audioState.duration === 0) return;
-    const currentTime = (progress.value / 100) * audioState.duration;
-    const newTime = Math.max(0, currentTime - 10);
-    const newPercentage = (newTime / audioState.duration) * 100;
-    seekToPercentage(newPercentage);
-};
-
-const skipForward = () => {
-    if (audioState.duration === 0) return;
-    const currentTime = (progress.value / 100) * audioState.duration;
-    const newTime = Math.min(audioState.duration, currentTime + 10);
-    const newPercentage = (newTime / audioState.duration) * 100;
-    seekToPercentage(newPercentage);
-};
-
-// Keyboard shortcuts
-const handleKeydown = (event: KeyboardEvent) => {
-    // Only handle shortcuts when not typing in an input
-    if (
-        event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement
-    ) {
-        return;
-    }
-
-    switch (event.key) {
-        case 'ArrowLeft':
-            event.preventDefault();
-            skipBackward();
-            break;
-        case 'ArrowRight':
-            event.preventDefault();
-            skipForward();
-            break;
-        case ' ':
-            event.preventDefault();
-            togglePlay();
-            break;
-    }
-};
+const showEmbedModal = ref(false);
+const embedCode = ref('');
+const embedCodeTextarea = ref<HTMLTextAreaElement>();
 
 const showEmbedCode = async () => {
     if (!props.episode) return;
@@ -581,6 +591,10 @@ const copyEmbedCode = async () => {
     }
 };
 
+// #######################################
+// Utilities
+// #######################################
+
 const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -590,7 +604,64 @@ const formatDate = (dateString: string): string => {
     });
 };
 
-// Resize handler for responsive bar width
+// #######################################
+// Keyboard Shortcuts
+// #######################################
+
+const handleKeydown = (event: KeyboardEvent) => {
+    // ####################
+    // Skip if typing in an input
+    // ####################
+
+    if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+    ) {
+        return;
+    }
+
+    // ####################
+    // Handle shortcut keys
+    // ####################
+
+    switch (event.key) {
+        case 'ArrowLeft':
+            event.preventDefault();
+            skipBackward();
+            break;
+        case 'ArrowRight':
+            event.preventDefault();
+            skipForward();
+            break;
+        case ' ':
+            event.preventDefault();
+            togglePlay();
+            break;
+    }
+};
+
+// #######################################
+// Lifecycle
+// #######################################
+
+// ##############################
+// Episode Watcher
+// ##############################
+
+watch(
+    () => props.episode,
+    (newEpisode) => {
+        if (newEpisode) {
+            initAudio(newEpisode);
+        }
+    },
+    { immediate: true },
+);
+
+// ##############################
+// Resize Handler
+// ##############################
+
 const handleResize = () => {
     // Force reactivity update for barWidth
     if (waveformContainer.value) {
@@ -598,6 +669,10 @@ const handleResize = () => {
             waveformContainer.value.style.width;
     }
 };
+
+// ##############################
+// Mount and Unmount
+// ##############################
 
 onMounted(() => {
     window.addEventListener('resize', handleResize);
@@ -611,7 +686,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Custom styles for volume slider */
+/* #######################################
+   Volume Slider
+   ####################################### */
+
 .volume-range::-webkit-slider-thumb {
     appearance: none;
     width: 16px;
@@ -645,7 +723,10 @@ onUnmounted(() => {
     border: none;
 }
 
-/* Waveform animations */
+/* #######################################
+   Waveform Animations
+   ####################################### */
+
 .waveform-container.playing .waveform-bar .progress-fill {
     animation: waveform-pulse 0.8s ease-in-out infinite alternate;
 }
@@ -661,7 +742,10 @@ onUnmounted(() => {
     }
 }
 
-/* Loading animation */
+/* #######################################
+   Loading Animation
+   ####################################### */
+
 .loading-bar {
     animation: loading-bounce 1.5s ease-in-out infinite;
 }
@@ -678,7 +762,10 @@ onUnmounted(() => {
     }
 }
 
-/* Hover effects */
+/* #######################################
+   Hover Effects
+   ####################################### */
+
 .waveform-container:hover .waveform-bar {
     transform: scaleY(1.02);
 }
@@ -687,7 +774,10 @@ onUnmounted(() => {
     backdrop-filter: blur(2px);
 }
 
-/* Focus states for accessibility */
+/* #######################################
+   Focus States for Accessibility
+   ####################################### */
+
 .play-pause-btn:focus,
 .previous-btn:focus,
 .next-btn:focus,
@@ -699,7 +789,10 @@ onUnmounted(() => {
     ring-offset: 2px;
 }
 
-/* Skip button hover effects */
+/* #######################################
+   Skip Button Effects
+   ####################################### */
+
 .skip-btn:hover:not(:disabled) {
     transform: scale(1.05);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -709,7 +802,6 @@ onUnmounted(() => {
     transform: scale(0.95);
 }
 
-/* Visual feedback for skip actions */
 .skip-btn.skip-active {
     background: linear-gradient(135deg, #f97316, #ea580c);
     color: white;
@@ -728,7 +820,10 @@ onUnmounted(() => {
     }
 }
 
-/* Reduced motion support */
+/* #######################################
+   Reduced Motion Support
+   ####################################### */
+
 @media (prefers-reduced-motion: reduce) {
     .waveform-bar,
     .progress-fill,

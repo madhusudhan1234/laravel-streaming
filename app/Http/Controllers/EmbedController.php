@@ -2,66 +2,69 @@
 
 namespace App\Http\Controllers;
 
+// #######################################
+// Imports
+// #######################################
+
 use App\Models\Episode;
 use App\Repositories\EpisodeRepository;
 
+// #######################################
+// EmbedController
+// #######################################
+
 class EmbedController extends Controller
 {
-    /**
-     * Show embed player for a specific episode
-     */
-    public function show($id)
-    {
-        $episode = $this->getEpisode($id);
-
-        if (! $episode) {
-            abort(404, 'Episode not found');
-        }
-
-        return view('embed', [
-            'episode' => $episode,
-        ]);
-    }
-
-
-    /**
-     * Generate embed code for an episode
-     */
-    public function generateEmbedCode($id)
-    {
-        $episode = $this->getEpisode($id);
-
-        if (! $episode) {
-            return response()->json(['error' => 'Episode not found'], 404);
-        }
-
-        $embedUrl = url("/embed/{$id}");
-        $embedCode = $this->buildEmbedCode($embedUrl, $episode);
-
-        return response()->json([
-            'embedCode' => $embedCode,
-            'embedUrl' => $embedUrl,
-            'episode' => $episode,
-        ]);
-    }
+    // ##############################
+    // Episode Retrieval
+    // ##############################
 
     /**
      * Get episode data from database
      */
     private function getEpisode($id)
     {
+        // ####################
+        // Try Repository First (Non-Testing)
+        // ####################
+
         if (! app()->environment('testing')) {
             $e = EpisodeRepository::find((int) $id);
             if ($e) {
                 return $e;
             }
         }
+
+        // ####################
+        // Fallback to Eloquent Model
+        // ####################
+
         try {
             return Episode::find($id);
         } catch (\Exception $e) {
             return null;
         }
     }
+
+    /**
+     * Execute callback with episode, or return 404 response
+     */
+    private function withEpisodeOr404($id, callable $onFound)
+    {
+        $episode = $this->getEpisode($id);
+
+        if (! $episode) {
+            return request()->expectsJson()
+                ? response()->json(['error' => 'Episode not found'], 404)
+                : abort(404, 'Episode not found');
+        }
+
+        return $onFound($episode);
+    }
+
+    // ##############################
+    // Embed Code Generation
+    // ##############################
 
     /**
      * Build HTML embed code
@@ -76,5 +79,36 @@ class EmbedController extends Controller
             $embedUrl,
             $title
         );
+    }
+
+    // ##############################
+    // Public Endpoints
+    // ##############################
+
+    /**
+     * Show embed player for a specific episode
+     */
+    public function show($id)
+    {
+        return $this->withEpisodeOr404($id, fn($episode) =>
+            view('embed', ['episode' => $episode])
+        );
+    }
+
+    /**
+     * Generate embed code for an episode
+     */
+    public function generateEmbedCode($id)
+    {
+        return $this->withEpisodeOr404($id, function($episode) use ($id) {
+            $embedUrl = url("/embed/{$id}");
+            $embedCode = $this->buildEmbedCode($embedUrl, $episode);
+
+            return response()->json([
+                'embedCode' => $embedCode,
+                'embedUrl' => $embedUrl,
+                'episode' => $episode,
+            ]);
+        });
     }
 }
