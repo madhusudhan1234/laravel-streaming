@@ -1,6 +1,10 @@
 import { InertiaLinkProps } from '@inertiajs/vue3';
 import type { LucideIcon } from 'lucide-vue-next';
 
+// Re-export canonical types from their modules
+export type { Episode } from './episode';
+export type { AudioState, AudioPlayerOptions } from './audio';
+
 export interface Auth {
     user: User;
 }
@@ -36,20 +40,6 @@ export interface User {
     email: string;
     avatar?: string;
     email_verified_at: string | null;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface Episode {
-    id: number;
-    title: string;
-    filename: string;
-    url: string;
-    duration: number;
-    file_size: string;
-    format: string;
-    published_date: string;
-    description: string;
     created_at: string;
     updated_at: string;
 }

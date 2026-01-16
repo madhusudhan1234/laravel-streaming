@@ -126,113 +126,19 @@
 
         <!-- SoundCloud-like Waveform -->
         <div class="waveform-section mb-4">
-            <div
-                ref="waveformContainer"
-                @click="handleWaveformClick"
-                @mousemove="handleWaveformHover"
-                @mouseleave="handleWaveformLeave"
-                class="waveform-container group relative cursor-pointer overflow-hidden rounded-lg bg-gradient-to-r from-gray-100 to-gray-50 p-4"
-                :class="{ playing: audioState.isPlaying }"
-                role="slider"
-                :aria-valuenow="audioState.currentTime"
-                :aria-valuemin="0"
-                :aria-valuemax="audioState.duration"
-                aria-label="Audio waveform - click to seek"
-            >
-                <!-- Background Waveform -->
-                <div class="waveform-bars flex h-20 items-end justify-between">
-                    <div
-                        v-for="(bar, index) in waveformBars"
-                        :key="index"
-                        class="waveform-bar relative overflow-hidden rounded-t-sm bg-gray-400 transition-all duration-300 ease-out hover:bg-gray-500"
-                        :style="{
-                            height: `${bar.height}%`,
-                            minHeight: '8px',
-                            width: `${barWidth}px`,
-                        }"
-                    >
-                        <!-- Progress Fill -->
-                        <div
-                            class="progress-fill absolute bottom-0 left-0 w-full transition-all duration-300 ease-out"
-                            :class="[
-                                index <= progressBarIndex
-                                    ? 'bg-gradient-to-t from-orange-500 to-orange-400 shadow-sm'
-                                    : 'bg-transparent',
-                                audioState.isPlaying &&
-                                index === progressBarIndex
-                                    ? 'animate-pulse'
-                                    : '',
-                            ]"
-                            :style="{
-                                height:
-                                    index < progressBarIndex
-                                        ? '100%'
-                                        : index === progressBarIndex
-                                          ? `${progressWithinBar}%`
-                                          : '0%',
-                            }"
-                        ></div>
-
-                        <!-- Hover Effect -->
-                        <div
-                            v-if="hoverIndex >= 0 && index <= hoverIndex"
-                            class="hover-fill absolute bottom-0 left-0 w-full bg-gradient-to-t from-orange-300 to-orange-200 opacity-60 transition-opacity duration-200"
-                            :style="{ height: '100%' }"
-                        ></div>
-                    </div>
-                </div>
-
-                <!-- Play Button Overlay -->
-                <div
-                    v-if="!audioState.isPlaying && !audioState.isLoading"
-                    class="play-overlay bg-opacity-20 absolute inset-0 flex items-center justify-center bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                >
-                    <div
-                        class="play-button transform rounded-full bg-orange-500 p-3 text-white shadow-lg transition-all duration-200 hover:scale-110 hover:bg-orange-600"
-                    >
-                        <svg
-                            class="ml-1 h-6 w-6"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path d="M8 5v14l11-7z" />
-                        </svg>
-                    </div>
-                </div>
-
-                <!-- Loading Overlay -->
-                <div
-                    v-if="audioState.isLoading"
-                    class="loading-overlay bg-opacity-80 absolute inset-0 flex items-center justify-center rounded-lg bg-white"
-                >
-                    <div class="flex space-x-1">
-                        <div
-                            v-for="i in 5"
-                            :key="i"
-                            class="loading-bar animate-bounce rounded-sm bg-orange-500"
-                            :style="{
-                                width: '4px',
-                                height: `${20 + (i % 3) * 10}px`,
-                                animationDelay: `${i * 0.1}s`,
-                            }"
-                        ></div>
-                    </div>
-                </div>
-
-                <!-- Time Display -->
-                <div
-                    class="time-display absolute right-4 bottom-1 left-4 flex justify-between text-xs text-gray-600"
-                >
-                    <span
-                        class="bg-opacity-90 rounded bg-white px-2 py-1 shadow-sm"
-                        >{{ formattedCurrentTime }}</span
-                    >
-                    <span
-                        class="bg-opacity-90 rounded bg-white px-2 py-1 shadow-sm"
-                        >{{ formattedDuration }}</span
-                    >
-                </div>
-            </div>
+            <Waveform
+                :progress="progress"
+                :current-time="audioState.currentTime"
+                :duration="audioState.duration"
+                :is-playing="audioState.isPlaying"
+                :is-loading="audioState.isLoading"
+                :total-bars="180"
+                :height="80"
+                :min-bar-height="8"
+                :seed="episode?.id"
+                :show-play-overlay="true"
+                @seek="handleWaveformSeek"
+            />
         </div>
 
         <!-- Volume Control -->
@@ -347,10 +253,8 @@
 </template>
 
 <script setup lang="ts">
-import {
-    useAudioStreaming,
-    type Episode,
-} from '@/composables/useAudioStreaming';
+import { useAudioPlayer, type Episode } from '@/composables/useAudioPlayer';
+import Waveform from '@/components/Waveform.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 // #######################################
@@ -384,115 +288,20 @@ const emit = defineEmits<Emits>();
 const {
     audioState,
     progress,
-    formattedCurrentTime,
-    formattedDuration,
     initAudio,
     togglePlay,
     seekToPercentage,
     setVolume,
     mute,
-} = useAudioStreaming();
+} = useAudioPlayer();
 
 // #######################################
-// Waveform Display
-// #######################################
-
-// ##############################
-// Waveform State
-// ##############################
-
-const waveformContainer = ref<HTMLElement>();
-const hoverIndex = ref(-1);
-const totalBars = 180;
-
-// ##############################
-// Waveform Computed Properties
-// ##############################
-
-const barWidth = computed(() => {
-    if (!waveformContainer.value) return 2;
-    const containerWidth = waveformContainer.value.offsetWidth - 32; // Account for padding
-    return Math.max(
-        2,
-        Math.floor(containerWidth / totalBars), // Remove gap calculation for full width
-    );
-});
-
-const waveformBars = computed(() => {
-    const bars = [];
-    for (let i = 0; i < totalBars; i++) {
-        // ####################
-        // Create multi-layer wave algorithm
-        // ####################
-
-        const mainWave = Math.sin(i * 0.08) * 0.4;
-        const secondaryWave = Math.sin(i * 0.23) * 0.25;
-        const detailWave = Math.sin(i * 0.47) * 0.15;
-
-        // ####################
-        // Combine waves and scale
-        // ####################
-
-        const combined = mainWave + secondaryWave + detailWave;
-        const randomness = (Math.random() - 0.5) * 0.3;
-
-        // Scale to percentage (8% to 85% range)
-        let height = ((combined + randomness + 1) / 2) * 77 + 8;
-
-        // Make every 3rd bar smaller for detail
-        if (i % 3 === 0) {
-            height *= 0.4;
-        }
-
-        // Ensure bounds
-        height = Math.max(8, Math.min(85, height));
-
-        bars.push({ height });
-    }
-    return bars;
-});
-
-// ##############################
-// Progress Calculations
-// ##############################
-
-const progressBarIndex = computed(() => {
-    return Math.floor((progress.value / 100) * totalBars);
-});
-
-const progressWithinBar = computed(() => {
-    const exactProgress = (progress.value / 100) * totalBars;
-    return (exactProgress - Math.floor(exactProgress)) * 100;
-});
-
-// ##############################
 // Waveform Event Handlers
-// ##############################
+// #######################################
 
-const getWaveformPercentage = (event: MouseEvent): number | null => {
-    if (!waveformContainer.value) return null;
-    const rect = waveformContainer.value.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    return (x / rect.width) * 100;
-};
-
-const handleWaveformClick = (event: MouseEvent) => {
+const handleWaveformSeek = (percentage: number) => {
     if (audioState.duration === 0) return;
-    const percentage = getWaveformPercentage(event);
-    if (percentage !== null) {
-        seekToPercentage(Math.max(0, Math.min(100, percentage)));
-    }
-};
-
-const handleWaveformHover = (event: MouseEvent) => {
-    const percentage = getWaveformPercentage(event);
-    if (percentage !== null) {
-        hoverIndex.value = Math.floor((percentage / 100) * totalBars);
-    }
-};
-
-const handleWaveformLeave = () => {
-    hoverIndex.value = -1;
+    seekToPercentage(Math.max(0, Math.min(100, percentage)));
 };
 
 // #######################################
@@ -652,35 +461,22 @@ watch(
     () => props.episode,
     (newEpisode) => {
         if (newEpisode) {
-            initAudio(newEpisode);
+            // Use streaming URL fetching for optimal playback
+            initAudio(newEpisode, { fetchStreamUrl: true });
         }
     },
     { immediate: true },
 );
 
 // ##############################
-// Resize Handler
-// ##############################
-
-const handleResize = () => {
-    // Force reactivity update for barWidth
-    if (waveformContainer.value) {
-        waveformContainer.value.style.width =
-            waveformContainer.value.style.width;
-    }
-};
-
-// ##############################
 // Mount and Unmount
 // ##############################
 
 onMounted(() => {
-    window.addEventListener('resize', handleResize);
     window.addEventListener('keydown', handleKeydown);
 });
 
 onUnmounted(() => {
-    window.removeEventListener('resize', handleResize);
     window.removeEventListener('keydown', handleKeydown);
 });
 </script>
@@ -721,57 +517,6 @@ onUnmounted(() => {
     border-radius: 4px;
     height: 8px;
     border: none;
-}
-
-/* #######################################
-   Waveform Animations
-   ####################################### */
-
-.waveform-container.playing .waveform-bar .progress-fill {
-    animation: waveform-pulse 0.8s ease-in-out infinite alternate;
-}
-
-@keyframes waveform-pulse {
-    0% {
-        opacity: 0.8;
-        transform: scaleY(0.95);
-    }
-    100% {
-        opacity: 1;
-        transform: scaleY(1.05);
-    }
-}
-
-/* #######################################
-   Loading Animation
-   ####################################### */
-
-.loading-bar {
-    animation: loading-bounce 1.5s ease-in-out infinite;
-}
-
-@keyframes loading-bounce {
-    0%,
-    100% {
-        transform: scaleY(0.5);
-        opacity: 0.7;
-    }
-    50% {
-        transform: scaleY(1.2);
-        opacity: 1;
-    }
-}
-
-/* #######################################
-   Hover Effects
-   ####################################### */
-
-.waveform-container:hover .waveform-bar {
-    transform: scaleY(1.02);
-}
-
-.waveform-container:hover .play-overlay {
-    backdrop-filter: blur(2px);
 }
 
 /* #######################################
@@ -825,10 +570,6 @@ onUnmounted(() => {
    ####################################### */
 
 @media (prefers-reduced-motion: reduce) {
-    .waveform-bar,
-    .progress-fill,
-    .play-button,
-    .loading-bar,
     .audio-controls button {
         animation: none;
         transition: none;
