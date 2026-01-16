@@ -354,7 +354,9 @@
 
 <script setup lang="ts">
 import type { Episode } from '@/composables/useAudioPlayer';
-import { computed, reactive, ref } from 'vue';
+import { useWaveformStore } from '@/composables/useWaveform';
+import { formatTime } from '@/lib/time';
+import { computed, ref } from 'vue';
 
 interface Props {
     episodes: Episode[];
@@ -394,42 +396,13 @@ const embedCode = ref('');
 const selectedEpisodeForEmbed = ref<Episode | null>(null);
 const embedCodeTextarea = ref<HTMLTextAreaElement>();
 
-// Waveform state
-const waveformData = reactive<
-    Record<number, { bars: Array<{ height: number }>; hoverIndex: number }>
->({});
-
-// Initialize waveform data for each episode
-const initializeWaveform = (episode: Episode) => {
-    if (!waveformData[episode.id]) {
-        const bars = [];
-        const totalBars = 60; // Increase number of bars for better visual density
-
-        // Generate realistic waveform pattern similar to SoundCloud
-        for (let i = 0; i < totalBars; i++) {
-            // Create more varied and realistic waveform pattern
-            const baseHeight = 25 + Math.sin(i * 0.15) * 20;
-            const variation = Math.sin(i * 0.4) * 25 + Math.cos(i * 0.3) * 20;
-            const randomness = (Math.random() - 0.5) * 30;
-            const height = Math.max(
-                15,
-                Math.min(85, baseHeight + variation + randomness),
-            );
-
-            bars.push({ height });
-        }
-
-        waveformData[episode.id] = {
-            bars,
-            hoverIndex: -1,
-        };
-    }
-};
+// Waveform state using shared store
+const totalBars = 60;
+const waveformStore = useWaveformStore({ totalBars });
 
 // Get waveform bars for an episode
 const getWaveformBars = (episode: Episode) => {
-    initializeWaveform(episode);
-    return waveformData[episode.id].bars;
+    return waveformStore.getBars(episode.id);
 };
 
 // Check if a bar is active (played)
@@ -437,7 +410,6 @@ const isBarActive = (episode: Episode, index: number) => {
     if (props.currentEpisode?.id !== episode.id || !props.progress)
         return false;
 
-    const totalBars = getWaveformBars(episode).length;
     const activeBarIndex = Math.floor((props.progress / 100) * totalBars);
     return index <= activeBarIndex;
 };
@@ -447,15 +419,13 @@ const isBarPlaying = (episode: Episode, index: number) => {
     if (props.currentEpisode?.id !== episode.id || !props.isPlaying)
         return false;
 
-    const totalBars = getWaveformBars(episode).length;
     const activeBarIndex = Math.floor((props.progress / 100) * totalBars);
     return index === activeBarIndex;
 };
 
 // Check if a bar is hovered
 const isBarHovered = (episode: Episode, index: number) => {
-    if (!waveformData[episode.id]) return false;
-    const hoverIndex = waveformData[episode.id].hoverIndex;
+    const hoverIndex = waveformStore.getHoverIndex(episode.id);
     return (
         hoverIndex >= 0 && index <= hoverIndex && !isBarActive(episode, index)
     );
@@ -480,23 +450,18 @@ const handleWaveformClick = (episode: Episode, event: MouseEvent) => {
 
 // Handle waveform hover
 const handleWaveformHover = (episode: Episode, event: MouseEvent) => {
-    initializeWaveform(episode);
-
     const container = event.currentTarget as HTMLElement;
     const rect = container.getBoundingClientRect();
     const hoverX = event.clientX - rect.left;
     const percentage = (hoverX / rect.width) * 100;
-    const totalBars = getWaveformBars(episode).length;
     const hoverIndex = Math.floor((percentage / 100) * totalBars);
 
-    waveformData[episode.id].hoverIndex = hoverIndex;
+    waveformStore.setHoverIndex(episode.id, hoverIndex);
 };
 
 // Clear waveform hover
 const clearWaveformHover = (episode: Episode) => {
-    if (waveformData[episode.id]) {
-        waveformData[episode.id].hoverIndex = -1;
-    }
+    waveformStore.clearHover(episode.id);
 };
 
 // Methods
@@ -600,19 +565,6 @@ const formatDuration = (
     }
 
     return '0:00';
-};
-const formatTime = (seconds: number): string => {
-    if (isNaN(seconds) || seconds < 0) return '0:00';
-
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-
-    if (hours > 0) {
-        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
 };
 </script>
 

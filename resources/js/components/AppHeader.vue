@@ -1,19 +1,58 @@
 <script setup lang="ts">
+// #######################################
+// IMPORTS
+// #######################################
+
+// ##############################
+// External Libraries
+// ##############################
+import { computed } from 'vue';
+import { InertiaLinkProps, Link, usePage } from '@inertiajs/vue3';
+import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-vue-next';
+
+// ##############################
+// Internal Types
+// ##############################
+import type { BreadcrumbItem, NavItem } from '@/types';
+
+// ##############################
+// Internal Utilities
+// ##############################
+import { getInitials } from '@/composables/useInitials';
+import { toUrl, urlIsActive } from '@/lib/utils';
+import { dashboard } from '@/routes';
+
+// ##############################
+// UI Components
+// ##############################
+
+// ####################
+// Base Components
+// ####################
 import AppLogo from '@/components/AppLogo.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
+import UserMenuContent from '@/components/UserMenuContent.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+
+// ####################
+// Navigation Components
+// ####################
 import {
     NavigationMenu,
     NavigationMenuItem,
     NavigationMenuList,
     navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu';
+
+// ####################
+// Overlay Components
+// ####################
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Sheet,
     SheetContent,
@@ -27,37 +66,61 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import UserMenuContent from '@/components/UserMenuContent.vue';
-import { getInitials } from '@/composables/useInitials';
-import { toUrl, urlIsActive } from '@/lib/utils';
-import { dashboard } from '@/routes';
-import type { BreadcrumbItem, NavItem } from '@/types';
-import { InertiaLinkProps, Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-vue-next';
-import { computed } from 'vue';
+
+// #######################################
+// TYPES
+// #######################################
 
 interface Props {
     breadcrumbs?: BreadcrumbItem[];
 }
 
+// #######################################
+// COMPONENT PROPS
+// #######################################
+
 const props = withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],
 });
 
+// #######################################
+// REACTIVE STATE
+// #######################################
+
 const page = usePage();
 const auth = computed(() => page.props.auth);
 
+// #######################################
+// COMPUTED PROPERTIES
+// #######################################
+
+// ##############################
+// Route Detection
+// ##############################
+
 const isCurrentRoute = computed(
     () => (url: NonNullable<InertiaLinkProps['href']>) =>
-        urlIsActive(url, page.url),
+        urlIsActive(toUrl(url), page.url),
 );
+
+// ##############################
+// Styling
+// ##############################
 
 const activeItemStyles = computed(
     () => (url: NonNullable<InertiaLinkProps['href']>) =>
-        isCurrentRoute.value(toUrl(url))
+        isCurrentRoute.value(url)
             ? 'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
             : '',
 );
+
+// #######################################
+// NAVIGATION DATA
+// #######################################
+
+// ##############################
+// Main Navigation
+// ##############################
 
 const mainNavItems: NavItem[] = [
     {
@@ -66,6 +129,10 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
 ];
+
+// ##############################
+// External Links
+// ##############################
 
 const rightNavItems: NavItem[] = [
     {
@@ -83,9 +150,14 @@ const rightNavItems: NavItem[] = [
 
 <template>
     <div>
+        <!-- #######################################
+             MAIN HEADER BAR
+             ####################################### -->
         <div class="border-b border-sidebar-border/80">
             <div class="mx-auto flex h-16 items-center px-4 md:max-w-7xl">
-                <!-- Mobile Menu -->
+                <!-- ##############################
+                     Mobile Menu
+                     ############################## -->
                 <div class="lg:hidden">
                     <Sheet>
                         <SheetTrigger :as-child="true">
@@ -101,6 +173,9 @@ const rightNavItems: NavItem[] = [
                             <SheetTitle class="sr-only"
                                 >Navigation Menu</SheetTitle
                             >
+                            <!-- ####################
+                                 Logo
+                                 #################### -->
                             <SheetHeader class="flex justify-start text-left">
                                 <div class="size-6 overflow-hidden rounded-md">
                                     <img
@@ -113,6 +188,9 @@ const rightNavItems: NavItem[] = [
                             <div
                                 class="flex h-full flex-1 flex-col justify-between space-y-4 py-6"
                             >
+                                <!-- ####################
+                                     Main Navigation
+                                     #################### -->
                                 <nav class="-mx-3 space-y-1">
                                     <Link
                                         v-for="item in mainNavItems"
@@ -129,6 +207,9 @@ const rightNavItems: NavItem[] = [
                                         {{ item.title }}
                                     </Link>
                                 </nav>
+                                <!-- ####################
+                                     External Links
+                                     #################### -->
                                 <div class="flex flex-col space-y-4">
                                     <a
                                         v-for="item in rightNavItems"
@@ -151,11 +232,16 @@ const rightNavItems: NavItem[] = [
                     </Sheet>
                 </div>
 
+                <!-- ##############################
+                     Logo
+                     ############################## -->
                 <Link :href="dashboard()" class="flex items-center gap-x-2">
                     <AppLogo />
                 </Link>
 
-                <!-- Desktop Menu -->
+                <!-- ##############################
+                     Desktop Menu
+                     ############################## -->
                 <div class="hidden h-full lg:flex lg:flex-1">
                     <NavigationMenu class="ml-10 flex h-full items-stretch">
                         <NavigationMenuList
@@ -190,8 +276,14 @@ const rightNavItems: NavItem[] = [
                     </NavigationMenu>
                 </div>
 
+                <!-- ##############################
+                     Right Actions
+                     ############################## -->
                 <div class="ml-auto flex items-center space-x-2">
                     <div class="relative flex items-center space-x-1">
+                        <!-- ####################
+                             Search Button
+                             #################### -->
                         <Button
                             variant="ghost"
                             size="icon"
@@ -202,6 +294,9 @@ const rightNavItems: NavItem[] = [
                             />
                         </Button>
 
+                        <!-- ####################
+                             External Links (Desktop)
+                             #################### -->
                         <div class="hidden space-x-1 lg:flex">
                             <template
                                 v-for="item in rightNavItems"
@@ -240,6 +335,9 @@ const rightNavItems: NavItem[] = [
                         </div>
                     </div>
 
+                    <!-- ####################
+                         User Menu
+                         #################### -->
                     <DropdownMenu>
                         <DropdownMenuTrigger :as-child="true">
                             <Button
@@ -271,6 +369,9 @@ const rightNavItems: NavItem[] = [
             </div>
         </div>
 
+        <!-- #######################################
+             BREADCRUMBS BAR
+             ####################################### -->
         <div
             v-if="props.breadcrumbs.length > 1"
             class="flex w-full border-b border-sidebar-border/70"

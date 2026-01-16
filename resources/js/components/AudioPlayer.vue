@@ -126,113 +126,19 @@
 
         <!-- SoundCloud-like Waveform -->
         <div class="waveform-section mb-4">
-            <div
-                ref="waveformContainer"
-                @click="handleWaveformClick"
-                @mousemove="handleWaveformHover"
-                @mouseleave="handleWaveformLeave"
-                class="waveform-container group relative cursor-pointer overflow-hidden rounded-lg bg-gradient-to-r from-gray-100 to-gray-50 p-4"
-                :class="{ playing: audioState.isPlaying }"
-                role="slider"
-                :aria-valuenow="audioState.currentTime"
-                :aria-valuemin="0"
-                :aria-valuemax="audioState.duration"
-                aria-label="Audio waveform - click to seek"
-            >
-                <!-- Background Waveform -->
-                <div class="waveform-bars flex h-20 items-end justify-between">
-                    <div
-                        v-for="(bar, index) in waveformBars"
-                        :key="index"
-                        class="waveform-bar relative overflow-hidden rounded-t-sm bg-gray-400 transition-all duration-300 ease-out hover:bg-gray-500"
-                        :style="{
-                            height: `${bar.height}%`,
-                            minHeight: '8px',
-                            width: `${barWidth}px`,
-                        }"
-                    >
-                        <!-- Progress Fill -->
-                        <div
-                            class="progress-fill absolute bottom-0 left-0 w-full transition-all duration-300 ease-out"
-                            :class="[
-                                index <= progressBarIndex
-                                    ? 'bg-gradient-to-t from-orange-500 to-orange-400 shadow-sm'
-                                    : 'bg-transparent',
-                                audioState.isPlaying &&
-                                index === progressBarIndex
-                                    ? 'animate-pulse'
-                                    : '',
-                            ]"
-                            :style="{
-                                height:
-                                    index < progressBarIndex
-                                        ? '100%'
-                                        : index === progressBarIndex
-                                          ? `${progressWithinBar}%`
-                                          : '0%',
-                            }"
-                        ></div>
-
-                        <!-- Hover Effect -->
-                        <div
-                            v-if="hoverIndex >= 0 && index <= hoverIndex"
-                            class="hover-fill absolute bottom-0 left-0 w-full bg-gradient-to-t from-orange-300 to-orange-200 opacity-60 transition-opacity duration-200"
-                            :style="{ height: '100%' }"
-                        ></div>
-                    </div>
-                </div>
-
-                <!-- Play Button Overlay -->
-                <div
-                    v-if="!audioState.isPlaying && !audioState.isLoading"
-                    class="play-overlay bg-opacity-20 absolute inset-0 flex items-center justify-center bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                >
-                    <div
-                        class="play-button transform rounded-full bg-orange-500 p-3 text-white shadow-lg transition-all duration-200 hover:scale-110 hover:bg-orange-600"
-                    >
-                        <svg
-                            class="ml-1 h-6 w-6"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path d="M8 5v14l11-7z" />
-                        </svg>
-                    </div>
-                </div>
-
-                <!-- Loading Overlay -->
-                <div
-                    v-if="audioState.isLoading"
-                    class="loading-overlay bg-opacity-80 absolute inset-0 flex items-center justify-center rounded-lg bg-white"
-                >
-                    <div class="flex space-x-1">
-                        <div
-                            v-for="i in 5"
-                            :key="i"
-                            class="loading-bar animate-bounce rounded-sm bg-orange-500"
-                            :style="{
-                                width: '4px',
-                                height: `${20 + (i % 3) * 10}px`,
-                                animationDelay: `${i * 0.1}s`,
-                            }"
-                        ></div>
-                    </div>
-                </div>
-
-                <!-- Time Display -->
-                <div
-                    class="time-display absolute right-4 bottom-1 left-4 flex justify-between text-xs text-gray-600"
-                >
-                    <span
-                        class="bg-opacity-90 rounded bg-white px-2 py-1 shadow-sm"
-                        >{{ formattedCurrentTime }}</span
-                    >
-                    <span
-                        class="bg-opacity-90 rounded bg-white px-2 py-1 shadow-sm"
-                        >{{ formattedDuration }}</span
-                    >
-                </div>
-            </div>
+            <Waveform
+                :progress="progress"
+                :current-time="audioState.currentTime"
+                :duration="audioState.duration"
+                :is-playing="audioState.isPlaying"
+                :is-loading="audioState.isLoading"
+                :total-bars="180"
+                :height="80"
+                :min-bar-height="8"
+                :seed="episode?.id"
+                :show-play-overlay="true"
+                @seek="handleWaveformSeek"
+            />
         </div>
 
         <!-- Volume Control -->
@@ -347,11 +253,13 @@
 </template>
 
 <script setup lang="ts">
-import {
-    useAudioStreaming,
-    type Episode,
-} from '@/composables/useAudioStreaming';
+import { useAudioPlayer, type Episode } from '@/composables/useAudioPlayer';
+import Waveform from '@/components/Waveform.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+
+// #######################################
+// Types
+// #######################################
 
 interface Props {
     episode?: Episode | null;
@@ -362,6 +270,10 @@ interface Emits {
     (e: 'episodeChange', episode: Episode): void;
 }
 
+// #######################################
+// Props and Emits
+// #######################################
+
 const props = withDefaults(defineProps<Props>(), {
     episode: null,
     episodes: () => [],
@@ -369,186 +281,93 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>();
 
-// Audio streaming composable
+// #######################################
+// Audio Streaming
+// #######################################
+
 const {
     audioState,
     progress,
-    formattedCurrentTime,
-    formattedDuration,
     initAudio,
     togglePlay,
     seekToPercentage,
     setVolume,
     mute,
-} = useAudioStreaming();
+} = useAudioPlayer();
 
-// Embed modal state
-const showEmbedModal = ref(false);
-const embedCode = ref('');
-const embedCodeTextarea = ref<HTMLTextAreaElement>();
+// #######################################
+// Waveform Event Handlers
+// #######################################
 
-// Waveform refs and state
-const waveformContainer = ref<HTMLElement>();
-const hoverIndex = ref(-1);
+const handleWaveformSeek = (percentage: number) => {
+    if (audioState.duration === 0) return;
+    seekToPercentage(Math.max(0, Math.min(100, percentage)));
+};
 
-// Waveform configuration
-const totalBars = 180;
-const barWidth = computed(() => {
-    if (!waveformContainer.value) return 2;
-    const containerWidth = waveformContainer.value.offsetWidth - 32; // Account for padding
-    return Math.max(
-        2,
-        Math.floor(containerWidth / totalBars), // Remove gap calculation for full width
-    );
-});
+// #######################################
+// Episode Navigation
+// #######################################
 
-// Generate waveform bars with realistic audio-like pattern
-const waveformBars = computed(() => {
-    const bars = [];
-    for (let i = 0; i < totalBars; i++) {
-        // Create multi-layer wave algorithm similar to embed player
-        const mainWave = Math.sin(i * 0.08) * 0.4;
-        const secondaryWave = Math.sin(i * 0.23) * 0.25;
-        const detailWave = Math.sin(i * 0.47) * 0.15;
-
-        // Combine waves and add randomness
-        const combined = mainWave + secondaryWave + detailWave;
-        const randomness = (Math.random() - 0.5) * 0.3;
-
-        // Scale to percentage (8% to 85% range)
-        let height = ((combined + randomness + 1) / 2) * 77 + 8;
-
-        // Make every 3rd bar smaller for detail
-        if (i % 3 === 0) {
-            height *= 0.4;
-        }
-
-        // Ensure bounds
-        height = Math.max(8, Math.min(85, height));
-
-        bars.push({ height });
-    }
-    return bars;
-});
-
-// Progress calculations for waveform
-const progressBarIndex = computed(() => {
-    return Math.floor((progress.value / 100) * totalBars);
-});
-
-const progressWithinBar = computed(() => {
-    const exactProgress = (progress.value / 100) * totalBars;
-    return (exactProgress - Math.floor(exactProgress)) * 100;
-});
-
-// Episode navigation
 const currentEpisodeIndex = computed(() => {
     if (!props.episode || !props.episodes.length) return -1;
     return props.episodes.findIndex((ep) => ep.id === props.episode?.id);
 });
 
-const hasPrevious = computed(() => currentEpisodeIndex.value > 0);
-const hasNext = computed(
-    () =>
-        currentEpisodeIndex.value < props.episodes.length - 1 &&
-        currentEpisodeIndex.value !== -1,
-);
-
-// Watch for episode changes
-watch(
-    () => props.episode,
-    (newEpisode) => {
-        if (newEpisode) {
-            initAudio(newEpisode);
-        }
-    },
-    { immediate: true },
-);
-
-// Methods
-const handleWaveformClick = (event: MouseEvent) => {
-    if (!waveformContainer.value || audioState.duration === 0) return;
-
-    const rect = waveformContainer.value.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const percentage = (clickX / rect.width) * 100;
-    seekToPercentage(Math.max(0, Math.min(100, percentage)));
+const canNavigate = (offset: number): boolean => {
+    if (currentEpisodeIndex.value === -1) return false;
+    const targetIndex = currentEpisodeIndex.value + offset;
+    return targetIndex >= 0 && targetIndex < props.episodes.length;
 };
 
-const handleWaveformHover = (event: MouseEvent) => {
-    if (!waveformContainer.value) return;
+const hasPrevious = computed(() => canNavigate(-1));
+const hasNext = computed(() => canNavigate(1));
 
-    const rect = waveformContainer.value.getBoundingClientRect();
-    const hoverX = event.clientX - rect.left;
-    const percentage = (hoverX / rect.width) * 100;
-    hoverIndex.value = Math.floor((percentage / 100) * totalBars);
+const navigateEpisode = (offset: number) => {
+    const targetIndex = currentEpisodeIndex.value + offset;
+    const canNav = targetIndex >= 0 && targetIndex < props.episodes.length;
+    if (canNav && currentEpisodeIndex.value !== -1) {
+        emit('episodeChange', props.episodes[targetIndex]);
+    }
 };
 
-const handleWaveformLeave = () => {
-    hoverIndex.value = -1;
+const previousEpisode = () => navigateEpisode(-1);
+const nextEpisode = () => navigateEpisode(1);
+
+// #######################################
+// Playback Controls
+// #######################################
+
+// ##############################
+// Skip Controls
+// ##############################
+
+const skipBySeconds = (delta: number) => {
+    if (audioState.duration === 0) return;
+    const currentTime = (progress.value / 100) * audioState.duration;
+    const newTime = Math.max(0, Math.min(audioState.duration, currentTime + delta));
+    const newPercentage = (newTime / audioState.duration) * 100;
+    seekToPercentage(newPercentage);
 };
+
+const skipBackward = () => skipBySeconds(-10);
+const skipForward = () => skipBySeconds(10);
+
+// ##############################
+// Volume Control
+// ##############################
 
 const handleVolumeChange = (event: Event) => {
     const target = event.target as HTMLInputElement;
     setVolume(parseInt(target.value));
 };
 
-const previousEpisode = () => {
-    if (hasPrevious.value && props.episodes.length > 0) {
-        const prevEpisode = props.episodes[currentEpisodeIndex.value - 1];
-        emit('episodeChange', prevEpisode);
-    }
-};
+// #######################################
+// Embed Modal
+// #######################################
 
-const nextEpisode = () => {
-    if (hasNext.value && props.episodes.length > 0) {
-        const nextEpisode = props.episodes[currentEpisodeIndex.value + 1];
-        emit('episodeChange', nextEpisode);
-    }
-};
-
-// 10-second skip functions
-const skipBackward = () => {
-    if (audioState.duration === 0) return;
-    const currentTime = (progress.value / 100) * audioState.duration;
-    const newTime = Math.max(0, currentTime - 10);
-    const newPercentage = (newTime / audioState.duration) * 100;
-    seekToPercentage(newPercentage);
-};
-
-const skipForward = () => {
-    if (audioState.duration === 0) return;
-    const currentTime = (progress.value / 100) * audioState.duration;
-    const newTime = Math.min(audioState.duration, currentTime + 10);
-    const newPercentage = (newTime / audioState.duration) * 100;
-    seekToPercentage(newPercentage);
-};
-
-// Keyboard shortcuts
-const handleKeydown = (event: KeyboardEvent) => {
-    // Only handle shortcuts when not typing in an input
-    if (
-        event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement
-    ) {
-        return;
-    }
-
-    switch (event.key) {
-        case 'ArrowLeft':
-            event.preventDefault();
-            skipBackward();
-            break;
-        case 'ArrowRight':
-            event.preventDefault();
-            skipForward();
-            break;
-        case ' ':
-            event.preventDefault();
-            togglePlay();
-            break;
-    }
-};
+const showEmbedModal = ref(false);
+const embedCode = ref('');
+const embedCodeTextarea = ref<HTMLTextAreaElement>();
 
 const showEmbedCode = async () => {
     if (!props.episode) return;
@@ -581,6 +400,10 @@ const copyEmbedCode = async () => {
     }
 };
 
+// #######################################
+// Utilities
+// #######################################
+
 const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -590,28 +413,79 @@ const formatDate = (dateString: string): string => {
     });
 };
 
-// Resize handler for responsive bar width
-const handleResize = () => {
-    // Force reactivity update for barWidth
-    if (waveformContainer.value) {
-        waveformContainer.value.style.width =
-            waveformContainer.value.style.width;
+// #######################################
+// Keyboard Shortcuts
+// #######################################
+
+const handleKeydown = (event: KeyboardEvent) => {
+    // ####################
+    // Skip if typing in an input
+    // ####################
+
+    if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+    ) {
+        return;
+    }
+
+    // ####################
+    // Handle shortcut keys
+    // ####################
+
+    switch (event.key) {
+        case 'ArrowLeft':
+            event.preventDefault();
+            skipBackward();
+            break;
+        case 'ArrowRight':
+            event.preventDefault();
+            skipForward();
+            break;
+        case ' ':
+            event.preventDefault();
+            togglePlay();
+            break;
     }
 };
 
+// #######################################
+// Lifecycle
+// #######################################
+
+// ##############################
+// Episode Watcher
+// ##############################
+
+watch(
+    () => props.episode,
+    (newEpisode) => {
+        if (newEpisode) {
+            // Use streaming URL fetching for optimal playback
+            initAudio(newEpisode, { fetchStreamUrl: true });
+        }
+    },
+    { immediate: true },
+);
+
+// ##############################
+// Mount and Unmount
+// ##############################
+
 onMounted(() => {
-    window.addEventListener('resize', handleResize);
     window.addEventListener('keydown', handleKeydown);
 });
 
 onUnmounted(() => {
-    window.removeEventListener('resize', handleResize);
     window.removeEventListener('keydown', handleKeydown);
 });
 </script>
 
 <style scoped>
-/* Custom styles for volume slider */
+/* #######################################
+   Volume Slider
+   ####################################### */
+
 .volume-range::-webkit-slider-thumb {
     appearance: none;
     width: 16px;
@@ -645,49 +519,10 @@ onUnmounted(() => {
     border: none;
 }
 
-/* Waveform animations */
-.waveform-container.playing .waveform-bar .progress-fill {
-    animation: waveform-pulse 0.8s ease-in-out infinite alternate;
-}
+/* #######################################
+   Focus States for Accessibility
+   ####################################### */
 
-@keyframes waveform-pulse {
-    0% {
-        opacity: 0.8;
-        transform: scaleY(0.95);
-    }
-    100% {
-        opacity: 1;
-        transform: scaleY(1.05);
-    }
-}
-
-/* Loading animation */
-.loading-bar {
-    animation: loading-bounce 1.5s ease-in-out infinite;
-}
-
-@keyframes loading-bounce {
-    0%,
-    100% {
-        transform: scaleY(0.5);
-        opacity: 0.7;
-    }
-    50% {
-        transform: scaleY(1.2);
-        opacity: 1;
-    }
-}
-
-/* Hover effects */
-.waveform-container:hover .waveform-bar {
-    transform: scaleY(1.02);
-}
-
-.waveform-container:hover .play-overlay {
-    backdrop-filter: blur(2px);
-}
-
-/* Focus states for accessibility */
 .play-pause-btn:focus,
 .previous-btn:focus,
 .next-btn:focus,
@@ -699,7 +534,10 @@ onUnmounted(() => {
     ring-offset: 2px;
 }
 
-/* Skip button hover effects */
+/* #######################################
+   Skip Button Effects
+   ####################################### */
+
 .skip-btn:hover:not(:disabled) {
     transform: scale(1.05);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -709,7 +547,6 @@ onUnmounted(() => {
     transform: scale(0.95);
 }
 
-/* Visual feedback for skip actions */
 .skip-btn.skip-active {
     background: linear-gradient(135deg, #f97316, #ea580c);
     color: white;
@@ -728,12 +565,11 @@ onUnmounted(() => {
     }
 }
 
-/* Reduced motion support */
+/* #######################################
+   Reduced Motion Support
+   ####################################### */
+
 @media (prefers-reduced-motion: reduce) {
-    .waveform-bar,
-    .progress-fill,
-    .play-button,
-    .loading-bar,
     .audio-controls button {
         animation: none;
         transition: none;

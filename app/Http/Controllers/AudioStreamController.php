@@ -2,158 +2,70 @@
 
 namespace App\Http\Controllers;
 
+// #######################################
+// Imports
+// #######################################
+
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Models\Episode;
 use App\Repositories\EpisodeRepository;
 
+// #######################################
+// AudioStreamController
+// #######################################
+
 class AudioStreamController extends Controller
 {
-    /**
-     * Stream audio file with HTTP range request support
-     */
-    public function stream(Request $request, $filename)
-    {
-        // Validate filename to prevent directory traversal
-        $filename = basename($filename);
+    // ##############################
+    // Episode Lookup
+    // ##############################
 
+    /**
+     * Find an episode using repository first (if not testing), then Eloquent fallback
+     */
+    private function findEpisode(callable $repositoryLookup, callable $eloquentLookup)
+    {
         $episode = null;
         if (! app()->environment('testing')) {
-            $episode = EpisodeRepository::findByFilename($filename);
+            $episode = $repositoryLookup();
         }
-        if (! $episode) {
-            $episode = Episode::where('filename', $filename)->first();
-        }
-
-        if (! $episode) {
-            abort(404, 'Episode not found');
-        }
-
-        // Get the episode URL (could be local or external)
-        $episodeUrl = is_array($episode) ? ($episode['url'] ?? null) : $episode->url;
-
-        // Resolve external URL when stored as relative path
-        $resolvedExternalUrl = $this->resolveExternalUrl($episodeUrl);
-        if ($resolvedExternalUrl) {
-            return redirect($resolvedExternalUrl, 302);
-        }
-
-        // Handle local files
-        $audioPath = $this->getLocalFilePath($episodeUrl);
-
-        // Check if local file exists
-        if (! file_exists($audioPath)) {
-            abort(404, 'Audio file not found on local storage');
-        }
-
-        // Get file info
-        $fileSize = filesize($audioPath);
-        $mimeType = $this->getMimeType($filename);
-
-        // Handle range requests for streaming
-        $range = $request->header('Range');
-
-        if ($range) {
-            return $this->handleRangeRequest($audioPath, $fileSize, $mimeType, $range);
-        }
-
-        // Return full file if no range requested
-        return $this->serveFullFile($audioPath, $fileSize, $mimeType);
+        return $episode ?: $eloquentLookup();
     }
 
     /**
-     * Handle HTTP range requests for partial content
+     * Get a property from an episode (handles both array and object)
      */
-    private function handleRangeRequest($filePath, $fileSize, $mimeType, $range)
+    private function getEpisodeProperty($episode, string $property)
     {
-        // Parse range header (e.g., "bytes=0-1023" or "bytes=1024-")
-        if (! preg_match('/bytes=(\d+)-(\d*)/', $range, $matches)) {
-            return response('Invalid range', 416);
+        return is_array($episode) ? ($episode[$property] ?? null) : $episode->$property;
+    }
+
+    // ##############################
+    // URL and Path Resolution
+    // ##############################
+
+    /**
+     * Resolve episode URL to external URL if applicable
+     */
+    private function resolveExternalUrl($episodeUrl): ?string
+    {
+        if (! is_string($episodeUrl) || $episodeUrl === '') {
+            return null;
         }
 
-        $start = (int) $matches[1];
-        $end = $matches[2] !== '' ? (int) $matches[2] : $fileSize - 1;
-
-        // Validate range
-        if ($start >= $fileSize || $end >= $fileSize || $start > $end) {
-            return response('Range not satisfiable', 416)
-                ->header('Content-Range', "bytes */{$fileSize}");
+        if (str_starts_with($episodeUrl, 'http')) {
+            return $episodeUrl;
         }
 
-        $contentLength = $end - $start + 1;
-
-        return new StreamedResponse(function () use ($filePath, $start, $contentLength) {
-            $file = fopen($filePath, 'rb');
-            fseek($file, $start);
-
-            $chunkSize = 8192; // 8KB chunks
-            $bytesRemaining = $contentLength;
-
-            while ($bytesRemaining > 0 && ! feof($file)) {
-                $bytesToRead = min($chunkSize, $bytesRemaining);
-                $chunk = fread($file, $bytesToRead);
-
-                if ($chunk === false) {
-                    break;
-                }
-
-                echo $chunk;
-                flush();
-
-                $bytesRemaining -= strlen($chunk);
+        if (str_starts_with($episodeUrl, '/episodes/') || str_starts_with($episodeUrl, 'episodes/')) {
+            $base = config('filesystems.disks.r2.url') ?? env('R2_PUBLIC_URL');
+            if ($base) {
+                return rtrim($base, '/').'/'.ltrim($episodeUrl, '/');
             }
+        }
 
-            fclose($file);
-        }, 206, [
-            'Content-Type' => $mimeType,
-            'Content-Length' => $contentLength,
-            'Content-Range' => "bytes {$start}-{$end}/{$fileSize}",
-            'Accept-Ranges' => 'bytes',
-            'Cache-Control' => 'public, max-age=3600',
-            'Access-Control-Allow-Origin' => '*',
-            'Access-Control-Allow-Headers' => 'Range',
-        ]);
-    }
-
-    /**
-     * Serve full file without range
-     */
-    private function serveFullFile($filePath, $fileSize, $mimeType)
-    {
-        return new StreamedResponse(function () use ($filePath) {
-            $file = fopen($filePath, 'rb');
-
-            while (! feof($file)) {
-                echo fread($file, 8192);
-                flush();
-            }
-
-            fclose($file);
-        }, 200, [
-            'Content-Type' => $mimeType,
-            'Content-Length' => $fileSize,
-            'Accept-Ranges' => 'bytes',
-            'Cache-Control' => 'public, max-age=3600',
-            'Access-Control-Allow-Origin' => '*',
-        ]);
-    }
-
-    /**
-     * Get MIME type based on file extension
-     */
-    private function getMimeType($filename)
-    {
-        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-
-        $mimeTypes = [
-            'mp3' => 'audio/mpeg',
-            'm4a' => 'audio/mp4',
-            'wav' => 'audio/wav',
-            'ogg' => 'audio/ogg',
-            'flac' => 'audio/flac',
-        ];
-
-        return $mimeTypes[$extension] ?? 'audio/mpeg';
+        return null;
     }
 
     /**
@@ -176,25 +88,242 @@ class AudioStreamController extends Controller
     }
 
     /**
+     * Get MIME type based on file extension
+     */
+    private function getMimeType($filename)
+    {
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        $mimeTypes = [
+            'mp3' => 'audio/mpeg',
+            'm4a' => 'audio/mp4',
+            'wav' => 'audio/wav',
+            'ogg' => 'audio/ogg',
+            'flac' => 'audio/flac',
+        ];
+
+        return $mimeTypes[$extension] ?? 'audio/mpeg';
+    }
+
+    // ##############################
+    // HTTP Headers
+    // ##############################
+
+    /**
+     * Build base headers for streaming responses
+     */
+    private function baseStreamHeaders(string $mimeType, int $contentLength): array
+    {
+        return [
+            'Content-Type' => $mimeType,
+            'Content-Length' => $contentLength,
+            'Accept-Ranges' => 'bytes',
+            'Cache-Control' => 'public, max-age=3600',
+            'Access-Control-Allow-Origin' => '*',
+        ];
+    }
+
+    /**
+     * Build headers for range (partial content) responses
+     */
+    private function rangeHeaders(string $mimeType, int $contentLength, int $start, int $end, int $fileSize): array
+    {
+        return array_merge(
+            $this->baseStreamHeaders($mimeType, $contentLength),
+            [
+                'Content-Range' => "bytes {$start}-{$end}/{$fileSize}",
+                'Access-Control-Allow-Headers' => 'Range',
+            ]
+        );
+    }
+
+    // ##############################
+    // Streaming Infrastructure
+    // ##############################
+
+    /**
+     * Create a streaming callback for file output
+     */
+    private function createStreamCallback(string $filePath, int $start = 0, ?int $length = null): callable
+    {
+        return function () use ($filePath, $start, $length) {
+            $file = fopen($filePath, 'rb');
+            if ($start > 0) {
+                fseek($file, $start);
+            }
+
+            $chunkSize = 8192;
+            $bytesRemaining = $length;
+
+            while (! feof($file)) {
+                $bytesToRead = $bytesRemaining !== null
+                    ? min($chunkSize, $bytesRemaining)
+                    : $chunkSize;
+
+                if ($bytesToRead <= 0) {
+                    break;
+                }
+
+                $chunk = fread($file, $bytesToRead);
+                if ($chunk === false || $chunk === '') {
+                    break;
+                }
+
+                echo $chunk;
+                flush();
+
+                if ($bytesRemaining !== null) {
+                    $bytesRemaining -= strlen($chunk);
+                }
+            }
+
+            fclose($file);
+        };
+    }
+
+    // ##############################
+    // HTTP Response Handlers
+    // ##############################
+
+    /**
+     * Handle HTTP range requests for partial content
+     */
+    private function handleRangeRequest($filePath, $fileSize, $mimeType, $range)
+    {
+        // ####################
+        // Parse Range Header
+        // ####################
+
+        if (! preg_match('/bytes=(\d+)-(\d*)/', $range, $matches)) {
+            return response('Invalid range', 416);
+        }
+
+        $start = (int) $matches[1];
+        $end = $matches[2] !== '' ? (int) $matches[2] : $fileSize - 1;
+
+        // ####################
+        // Validate Range
+        // ####################
+
+        if ($start >= $fileSize || $end >= $fileSize || $start > $end) {
+            return response('Range not satisfiable', 416)
+                ->header('Content-Range', "bytes */{$fileSize}");
+        }
+
+        // ####################
+        // Build Response
+        // ####################
+
+        $contentLength = $end - $start + 1;
+
+        return new StreamedResponse(
+            $this->createStreamCallback($filePath, $start, $contentLength),
+            206,
+            $this->rangeHeaders($mimeType, $contentLength, $start, $end, $fileSize)
+        );
+    }
+
+    /**
+     * Serve full file without range
+     */
+    private function serveFullFile($filePath, $fileSize, $mimeType)
+    {
+        return new StreamedResponse(
+            $this->createStreamCallback($filePath),
+            200,
+            $this->baseStreamHeaders($mimeType, $fileSize)
+        );
+    }
+
+    // ##############################
+    // Public API Endpoints
+    // ##############################
+
+    /**
+     * Stream audio file with HTTP range request support
+     */
+    public function stream(Request $request, $filename)
+    {
+        // ####################
+        // Validate Input
+        // ####################
+
+        $filename = basename($filename);
+
+        // ####################
+        // Find Episode
+        // ####################
+
+        $episode = $this->findEpisode(
+            fn () => EpisodeRepository::findByFilename($filename),
+            fn () => Episode::where('filename', $filename)->first()
+        );
+
+        if (! $episode) {
+            abort(404, 'Episode not found');
+        }
+
+        // ####################
+        // Resolve URL
+        // ####################
+
+        $episodeUrl = $this->getEpisodeProperty($episode, 'url');
+
+        $resolvedExternalUrl = $this->resolveExternalUrl($episodeUrl);
+        if ($resolvedExternalUrl) {
+            return redirect($resolvedExternalUrl, 302);
+        }
+
+        // ####################
+        // Handle Local File
+        // ####################
+
+        $audioPath = $this->getLocalFilePath($episodeUrl);
+
+        if (! file_exists($audioPath)) {
+            abort(404, 'Audio file not found on local storage');
+        }
+
+        // ####################
+        // Stream Response
+        // ####################
+
+        $fileSize = filesize($audioPath);
+        $mimeType = $this->getMimeType($filename);
+
+        $range = $request->header('Range');
+
+        if ($range) {
+            return $this->handleRangeRequest($audioPath, $fileSize, $mimeType, $range);
+        }
+
+        return $this->serveFullFile($audioPath, $fileSize, $mimeType);
+    }
+
+    /**
      * Get episode by ID and return streaming URL
      */
     public function getEpisodeStreamUrl($id)
     {
         try {
-            $episode = null;
-            if (! app()->environment('testing')) {
-                $episode = EpisodeRepository::find((int) $id);
-            }
-            if (! $episode) {
-                $episode = Episode::find($id);
-            }
+            // ####################
+            // Find Episode
+            // ####################
+
+            $episode = $this->findEpisode(
+                fn () => EpisodeRepository::find((int) $id),
+                fn () => Episode::find($id)
+            );
 
             if (! $episode) {
                 return response()->json(['error' => 'Episode not found'], 404);
             }
 
-            // Generate streaming URL
-            $filename = is_array($episode) ? ($episode['filename'] ?? null) : $episode->filename;
+            // ####################
+            // Build Response
+            // ####################
+
+            $filename = $this->getEpisodeProperty($episode, 'filename');
             $streamUrl = url("/api/stream/{$filename}");
 
             return response()->json([
@@ -206,25 +335,5 @@ class AudioStreamController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to get episode'], 500);
         }
-    }
-
-    private function resolveExternalUrl($episodeUrl): ?string
-    {
-        if (! is_string($episodeUrl) || $episodeUrl === '') {
-            return null;
-        }
-
-        if (str_starts_with($episodeUrl, 'http')) {
-            return $episodeUrl;
-        }
-
-        if (str_starts_with($episodeUrl, '/episodes/') || str_starts_with($episodeUrl, 'episodes/')) {
-            $base = config('filesystems.disks.r2.url') ?? env('R2_PUBLIC_URL');
-            if ($base) {
-                return rtrim($base, '/').'/'.ltrim($episodeUrl, '/');
-            }
-        }
-
-        return null;
     }
 }

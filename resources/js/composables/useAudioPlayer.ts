@@ -1,35 +1,29 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useGlobalAudioManager } from './useGlobalAudioManager';
+import { formatTime } from '@/lib/time';
+import type { Episode } from '@/types/episode';
+import type { AudioState, AudioPlayerOptions } from '@/types/audio';
 
-export interface Episode {
-    id: number;
-    title: string;
-    filename: string;
-    duration: string;
-    file_size: string;
-    format: string;
-    published_date: string;
-    description: string;
-    url: string;
-}
+// Re-export types for backward compatibility
+export type { Episode } from '@/types/episode';
+export type { AudioState, AudioPlayerOptions } from '@/types/audio';
 
-export interface AudioState {
-    isPlaying: boolean;
-    currentTime: number;
-    duration: number;
-    volume: number;
-    isLoading: boolean;
-    error: string | null;
-    buffered: number;
-}
-
-export function useAudioPlayer(episode?: Episode) {
+/**
+ * Unified audio player composable
+ *
+ * Handles both direct URL playback and streaming URL fetching.
+ * Integrates with GlobalAudioManager for exclusive playback across frames.
+ *
+ * @param episode - Optional episode to initialize with on mount
+ * @param options - Optional configuration for playback behavior
+ */
+export function useAudioPlayer(episode?: Episode, options?: AudioPlayerOptions) {
     const audioElement = ref<HTMLAudioElement | null>(null);
+    let currentEpisode: Episode | null = null;
 
-    // Initialize global audio manager
+    // Global audio manager for exclusive playback
     const { registerPlayer } = useGlobalAudioManager();
     const audioManager = registerPlayer(() => {
-        // Pause callback for global audio manager
         if (audioElement.value && !audioElement.value.paused) {
             audioElement.value.pause();
         }
@@ -43,6 +37,7 @@ export function useAudioPlayer(episode?: Episode) {
         isLoading: false,
         error: null,
         buffered: 0,
+        canSeek: false,
     });
 
     // Computed properties
@@ -51,100 +46,203 @@ export function useAudioPlayer(episode?: Episode) {
         return (audioState.currentTime / audioState.duration) * 100;
     });
 
-    const formattedCurrentTime = computed(() =>
-        formatTime(audioState.currentTime),
-    );
+    const formattedCurrentTime = computed(() => formatTime(audioState.currentTime));
     const formattedDuration = computed(() => formatTime(audioState.duration));
 
-    // Initialize audio element
-    const initAudio = (episodeData: Episode) => {
+    /**
+     * Fetch streaming URL from API endpoint
+     * Falls back to episode.url on failure
+     */
+    const getStreamingUrl = async (episodeData: Episode): Promise<string> => {
+        try {
+            const response = await fetch(`/api/episodes/${episodeData.id}/stream`);
+            const data = await response.json();
+
+            if (data.stream_url) {
+                return data.stream_url;
+            }
+
+            // Fallback to direct URL if streaming not available
+            return episodeData.url;
+        } catch (error) {
+            console.warn('Failed to get streaming URL, using direct URL:', error);
+            return episodeData.url;
+        }
+    };
+
+    /**
+     * Determine the audio source URL based on episode data and options
+     */
+    const resolveAudioSource = (episodeData: Episode): string => {
+        // If URL is already a full HTTP URL, use it directly
+        if (episodeData.url && episodeData.url.startsWith('http')) {
+            return episodeData.url;
+        }
+        // Otherwise use the streaming API endpoint
+        return `/api/stream/${episodeData.filename}`;
+    };
+
+    /**
+     * Initialize audio element with an episode
+     *
+     * @param episodeData - The episode to play
+     * @param initOptions - Override options for this initialization
+     */
+    const initAudio = async (
+        episodeData: Episode,
+        initOptions?: AudioPlayerOptions,
+    ) => {
+        const opts = { ...options, ...initOptions };
+        const fetchStreamUrl = opts?.fetchStreamUrl ?? false;
+        const preload = opts?.preload ?? 'metadata';
+        const autoPlay = opts?.autoPlay ?? false;
+
+        // Cleanup existing audio element
         if (audioElement.value) {
             audioElement.value.pause();
             audioElement.value.src = '';
         }
 
-        const source = episodeData.url && episodeData.url.startsWith('http')
-            ? episodeData.url
-            : `/api/stream/${episodeData.filename}`;
+        // Reset state
+        audioState.isLoading = true;
+        audioState.error = null;
+        audioState.canSeek = false;
+        audioState.currentTime = 0;
+        audioState.duration = 0;
+        audioState.buffered = 0;
+        currentEpisode = episodeData;
 
-        audioElement.value = new Audio(source);
+        try {
+            // Determine source URL
+            const source = fetchStreamUrl
+                ? await getStreamingUrl(episodeData)
+                : resolveAudioSource(episodeData);
 
-        // Configure for progressive streaming like SoundCloud
-        audioElement.value.preload = 'none'; // Only load when user clicks play
-        audioElement.value.crossOrigin = 'anonymous';
+            audioElement.value = new Audio();
 
-        setupAudioListeners();
-        audioElement.value.volume = audioState.volume / 100;
+            // Configure for optimal streaming
+            audioElement.value.preload = preload;
+            audioElement.value.crossOrigin = 'anonymous';
+
+            // Set up event listeners before setting src
+            setupAudioListeners();
+
+            // Set the source URL
+            audioElement.value.src = source;
+            audioElement.value.volume = audioState.volume / 100;
+
+            if (autoPlay) {
+                // Wait for enough data to play
+                audioElement.value.addEventListener(
+                    'canplay',
+                    () => {
+                        play();
+                    },
+                    { once: true },
+                );
+            }
+        } catch (error) {
+            audioState.error = 'Failed to initialize audio';
+            audioState.isLoading = false;
+            console.error('Audio initialization error:', error);
+        }
     };
 
-    // Setup event listeners
+    /**
+     * Setup all audio element event listeners
+     */
     const setupAudioListeners = () => {
         if (!audioElement.value) return;
 
-        audioElement.value.addEventListener('loadstart', () => {
+        const audio = audioElement.value;
+
+        audio.addEventListener('loadstart', () => {
             audioState.isLoading = true;
             audioState.error = null;
         });
 
-        audioElement.value.addEventListener('loadedmetadata', () => {
-            audioState.duration = audioElement.value?.duration || 0;
+        audio.addEventListener('loadedmetadata', () => {
+            audioState.duration = audio.duration || 0;
+            audioState.canSeek = true;
             audioState.isLoading = false;
         });
 
-        audioElement.value.addEventListener('timeupdate', () => {
-            audioState.currentTime = audioElement.value?.currentTime || 0;
+        audio.addEventListener('timeupdate', () => {
+            audioState.currentTime = audio.currentTime || 0;
         });
 
-        audioElement.value.addEventListener('progress', () => {
-            if (audioElement.value && audioElement.value.buffered.length > 0) {
-                const bufferedEnd = audioElement.value.buffered.end(
-                    audioElement.value.buffered.length - 1,
-                );
-                audioState.buffered = (bufferedEnd / audioState.duration) * 100;
+        audio.addEventListener('progress', () => {
+            if (audio.buffered.length > 0) {
+                const bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
+                audioState.buffered =
+                    audioState.duration > 0
+                        ? (bufferedEnd / audioState.duration) * 100
+                        : 0;
             }
         });
 
-        audioElement.value.addEventListener('play', () => {
-            audioState.isPlaying = true;
-            // Notify global audio manager
-            audioManager.notifyPlay(episode?.id);
+        audio.addEventListener('canplay', () => {
+            audioState.isLoading = false;
+            audioState.canSeek = true;
         });
 
-        audioElement.value.addEventListener('pause', () => {
+        audio.addEventListener('canplaythrough', () => {
+            audioState.isLoading = false;
+        });
+
+        audio.addEventListener('play', () => {
+            audioState.isPlaying = true;
+            audioManager.notifyPlay(currentEpisode?.id);
+        });
+
+        audio.addEventListener('pause', () => {
             audioState.isPlaying = false;
-            // Notify global audio manager
             audioManager.notifyPause();
         });
 
-        audioElement.value.addEventListener('ended', () => {
+        audio.addEventListener('ended', () => {
             audioState.isPlaying = false;
             audioState.currentTime = 0;
-            // Notify global audio manager
             audioManager.notifyStop();
         });
 
-        audioElement.value.addEventListener('error', () => {
-            audioState.error = 'Failed to load audio file';
+        audio.addEventListener('error', (e) => {
+            audioState.error = 'Failed to load or play audio';
             audioState.isLoading = false;
             audioState.isPlaying = false;
+            console.error('Audio error:', e);
         });
 
-        audioElement.value.addEventListener('waiting', () => {
+        audio.addEventListener('waiting', () => {
             audioState.isLoading = true;
         });
 
-        audioElement.value.addEventListener('canplay', () => {
+        audio.addEventListener('seeking', () => {
+            audioState.isLoading = true;
+        });
+
+        audio.addEventListener('seeked', () => {
             audioState.isLoading = false;
+        });
+
+        // Network state logging for debugging streaming issues
+        audio.addEventListener('stalled', () => {
+            console.log('Audio stalled - network may be slow');
+        });
+
+        audio.addEventListener('suspend', () => {
+            // Normal behavior - browser paused downloading
         });
     };
 
-    // Audio control methods
+    /**
+     * Start or resume playback
+     */
     const play = async () => {
         if (!audioElement.value) return;
 
         try {
-            // Notify global audio manager before playing
-            audioManager.notifyPlay(episode?.id);
+            audioManager.notifyPlay(currentEpisode?.id);
             await audioElement.value.play();
         } catch (error) {
             audioState.error = 'Failed to play audio';
@@ -152,30 +250,50 @@ export function useAudioPlayer(episode?: Episode) {
         }
     };
 
+    /**
+     * Pause playback
+     */
     const pause = () => {
         if (!audioElement.value) return;
         audioElement.value.pause();
     };
 
-    const togglePlay = () => {
+    /**
+     * Toggle between play and pause
+     */
+    const togglePlay = async () => {
         if (audioState.isPlaying) {
             pause();
         } else {
-            play();
+            await play();
         }
     };
 
+    /**
+     * Seek to a specific time in seconds
+     */
     const seek = (time: number) => {
-        if (!audioElement.value) return;
-        audioElement.value.currentTime = time;
+        if (!audioElement.value || !audioState.canSeek) return;
+
+        // Clamp time to valid range
+        const clampedTime = Math.max(0, Math.min(time, audioState.duration));
+        audioElement.value.currentTime = clampedTime;
     };
 
+    /**
+     * Seek to a percentage of the total duration
+     */
     const seekToPercentage = (percentage: number) => {
-        if (!audioElement.value || audioState.duration === 0) return;
+        if (!audioElement.value || audioState.duration === 0 || !audioState.canSeek)
+            return;
+
         const time = (percentage / 100) * audioState.duration;
         seek(time);
     };
 
+    /**
+     * Set volume (0-100)
+     */
     const setVolume = (volume: number) => {
         audioState.volume = Math.max(0, Math.min(100, volume));
         if (audioElement.value) {
@@ -183,42 +301,37 @@ export function useAudioPlayer(episode?: Episode) {
         }
     };
 
+    /**
+     * Toggle mute state
+     */
     const mute = () => {
         if (audioElement.value) {
             audioElement.value.muted = !audioElement.value.muted;
         }
     };
 
-    // Utility functions
-    const formatTime = (seconds: number): string => {
-        if (isNaN(seconds) || seconds < 0) return '0:00';
+    /**
+     * Check if audio is muted
+     */
+    const isMuted = computed(() => audioElement.value?.muted ?? false);
 
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        const secs = Math.floor(seconds % 60);
-
-        if (hours > 0) {
-            return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        return `${minutes}:${secs.toString().padStart(2, '0')}`;
-    };
-
-    // Cleanup
+    /**
+     * Cleanup audio resources
+     */
     const cleanup = () => {
         if (audioElement.value) {
             audioElement.value.pause();
             audioElement.value.src = '';
             audioElement.value = null;
         }
-        // Unregister from global audio manager
+        currentEpisode = null;
         audioManager.unregister();
     };
 
     // Initialize with episode if provided
     if (episode) {
         onMounted(() => {
-            initAudio(episode);
+            initAudio(episode, options);
         });
     }
 
@@ -227,10 +340,17 @@ export function useAudioPlayer(episode?: Episode) {
     });
 
     return {
+        // State
         audioState,
+        audioElement,
+
+        // Computed
         progress,
         formattedCurrentTime,
         formattedDuration,
+        isMuted,
+
+        // Methods
         initAudio,
         play,
         pause,
@@ -239,8 +359,13 @@ export function useAudioPlayer(episode?: Episode) {
         seekToPercentage,
         setVolume,
         mute,
-        formatTime,
         cleanup,
-        audioManager, // Expose audio manager for advanced use cases
+        getStreamingUrl,
+
+        // Utilities (re-exported for convenience)
+        formatTime,
+
+        // Audio manager (for advanced use cases)
+        audioManager,
     };
 }

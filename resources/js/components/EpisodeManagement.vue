@@ -1,4 +1,19 @@
 <script setup lang="ts">
+// #######################################
+// Imports
+// #######################################
+
+// ##############################
+// External Libraries
+// ##############################
+
+import { router, useForm, usePage } from '@inertiajs/vue3';
+import { onMounted, ref } from 'vue';
+
+// ##############################
+// UI Components
+// ##############################
+
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -20,26 +35,52 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { router, useForm, usePage } from '@inertiajs/vue3';
-import { onMounted, ref } from 'vue';
-// Alert dialog functionality will be handled using regular Dialog components
+
+// ##############################
+// Utilities & Types
+// ##############################
+
 import { toast } from '@/composables/useToast';
 import { type Episode } from '@/types';
 import { Edit, Plus, Trash2, Upload } from 'lucide-vue-next';
+
+// #######################################
+// Types
+// #######################################
 
 interface Props {
     episodes: Episode[];
 }
 
+// #######################################
+// Component State
+// #######################################
+
+// ##############################
+// Props & Page Context
+// ##############################
+
 const props = defineProps<Props>();
 const page = usePage();
 
+// ##############################
+// Episode Data
+// ##############################
+
 const episodes = ref<Episode[]>(props.episodes);
-const showAddDialog = ref(false);
-const showEditDialog = ref(false);
 const editingEpisode = ref<Episode | null>(null);
 
-// Form data using Inertia Form
+// ##############################
+// Dialog Visibility
+// ##############################
+
+const showAddDialog = ref(false);
+const showEditDialog = ref(false);
+
+// ##############################
+// Form Instances
+// ##############################
+
 const createForm = useForm({
     title: '',
     description: '',
@@ -54,23 +95,42 @@ const updateForm = useForm({
     published_date: '',
 });
 
+// ##############################
+// Messages & Errors
+// ##############################
+
 const errors = ref<Record<string, string>>({});
 const successMessage = ref('');
 
-// Format duration from decimal minutes to MM:SS format
+// #######################################
+// Utility Functions
+// #######################################
+
+// ##############################
+// Duration Formatting
+// ##############################
+
 const formatDuration = (
     durationInMinutes: number | string | null | undefined,
 ): string => {
     if (!durationInMinutes) return '0:00';
 
+    // ####################
+    // Handle String Input
+    // ####################
+
     if (typeof durationInMinutes === 'string') {
         const str = durationInMinutes.trim();
+
+        // Already in MM:SS format
         if (str.includes(':')) {
             const [m, s] = str.split(':');
             const mm = Math.max(0, parseInt(m || '0', 10));
             const ss = Math.max(0, parseInt(s || '0', 10));
             return `${mm}:${ss.toString().padStart(2, '0')}`;
         }
+
+        // Decimal minutes format
         const num = parseFloat(str);
         if (!isNaN(num) && num > 0) {
             const totalMinutes = Math.floor(num);
@@ -81,6 +141,10 @@ const formatDuration = (
         return '0:00';
     }
 
+    // ####################
+    // Handle Number Input
+    // ####################
+
     const duration = durationInMinutes as number;
     if (!duration || duration <= 0 || isNaN(duration)) return '0:00';
     const totalMinutes = Math.floor(duration);
@@ -89,12 +153,29 @@ const formatDuration = (
     return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-// Load episodes from props (no need for API call)
+// #######################################
+// Data Management
+// #######################################
+
+// ##############################
+// Loading & Refreshing
+// ##############################
+
 const loadEpisodes = async () => {
     episodes.value = props.episodes;
 };
 
-// Reset form
+const refreshEpisodes = () => {
+    router.visit('/dashboard/episodes', {
+        preserveState: false,
+        preserveScroll: true,
+    });
+};
+
+// ##############################
+// Form Helpers
+// ##############################
+
 const resetForm = () => {
     createForm.reset();
     updateForm.reset();
@@ -102,33 +183,28 @@ const resetForm = () => {
     successMessage.value = '';
 };
 
-// Handle file selection
-const handleFileSelect = (event: Event) => {
+const makeFileSelectHandler = (form: { audio_file: File | null }) => (event: Event) => {
     const target = event.target as HTMLInputElement;
     if (target.files && target.files[0]) {
-        createForm.audio_file = target.files[0];
+        form.audio_file = target.files[0];
     }
 };
 
-const handleEditFileSelect = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    if (target.files && target.files[0]) {
-        updateForm.audio_file = target.files[0];
-    }
-};
+// #######################################
+// CRUD Operations
+// #######################################
 
-// Create episode
+// ##############################
+// Create
+// ##############################
+
 const createEpisode = async () => {
     createForm.post('/dashboard/episodes', {
         onSuccess: () => {
             toast.success('Episode created successfully!');
             showAddDialog.value = false;
             resetForm();
-            // Use Inertia visit to refresh with fresh data
-            router.visit('/dashboard/episodes', {
-                preserveState: false,
-                preserveScroll: true,
-            });
+            refreshEpisodes();
         },
         onError: (errors) => {
             console.error('Error creating episode:', errors);
@@ -137,7 +213,10 @@ const createEpisode = async () => {
     });
 };
 
-// Edit episode
+// ##############################
+// Read/Edit
+// ##############################
+
 const editEpisode = (episode: Episode) => {
     editingEpisode.value = episode;
     updateForm.title = episode.title;
@@ -147,7 +226,10 @@ const editEpisode = (episode: Episode) => {
     showEditDialog.value = true;
 };
 
-// Update episode
+// ##############################
+// Update
+// ##############################
+
 const updateEpisode = async () => {
     if (!editingEpisode.value) return;
 
@@ -157,11 +239,7 @@ const updateEpisode = async () => {
             showEditDialog.value = false;
             editingEpisode.value = null;
             resetForm();
-            // Use Inertia visit to refresh with fresh data
-            router.visit('/dashboard/episodes', {
-                preserveState: false,
-                preserveScroll: true,
-            });
+            refreshEpisodes();
         },
         onError: (errors) => {
             console.error('Error updating episode:', errors);
@@ -170,52 +248,65 @@ const updateEpisode = async () => {
     });
 };
 
-// Delete episode
+// ##############################
+// Delete
+// ##############################
+
 const deleteEpisode = async (id: number) => {
-    if (confirm('Are you sure you want to delete this episode?')) {
-        try {
-            const token =
-                document
-                    .querySelector('meta[name="csrf-token"]')
-                    ?.getAttribute('content') || '';
+    if (!confirm('Are you sure you want to delete this episode?')) return;
 
-            const response = await fetch(`/dashboard/episodes/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': token,
-                },
-                credentials: 'same-origin',
-            });
+    try {
+        // ####################
+        // Get CSRF Token
+        // ####################
 
-            if (response.ok) {
-                toast.success('Episode deleted successfully!');
-                router.visit('/dashboard/episodes', {
-                    preserveState: false,
-                    preserveScroll: true,
-                });
-            } else {
-                const data = await response.json().catch(() => null);
-                console.error('Delete failed:', data || response.statusText);
-                toast.error('Failed to delete episode.');
-            }
-        } catch (error) {
-            console.error('Error deleting episode:', error);
-            toast.error('An error occurred while deleting the episode.');
+        const token =
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content') || '';
+
+        // ####################
+        // Send Delete Request
+        // ####################
+
+        const response = await fetch(`/dashboard/episodes/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': token,
+            },
+            credentials: 'same-origin',
+        });
+
+        // ####################
+        // Handle Response
+        // ####################
+
+        if (response.ok) {
+            toast.success('Episode deleted successfully!');
+            refreshEpisodes();
+        } else {
+            const data = await response.json().catch(() => null);
+            console.error('Delete failed:', data || response.statusText);
+            toast.error('Failed to delete episode.');
         }
+    } catch (error) {
+        console.error('Error deleting episode:', error);
+        toast.error('An error occurred while deleting the episode.');
     }
 };
+
+// ##############################
+// Sync
+// ##############################
 
 const syncEpisodes = async () => {
     try {
         await router.post('/dashboard/episodes/sync', {}, {
             onSuccess: () => {
                 toast.success('Sync queued to Redis');
-                router.visit('/dashboard/episodes', {
-                    preserveState: false,
-                    preserveScroll: true,
-                });
+                refreshEpisodes();
             },
             onError: () => {
                 toast.error('Failed to queue sync');
@@ -227,24 +318,36 @@ const syncEpisodes = async () => {
     }
 };
 
+// #######################################
+// Lifecycle Hooks
+// #######################################
+
 onMounted(() => {
+    // ####################
+    // Load Episodes
+    // ####################
+
     loadEpisodes();
 
-    // Check for flash messages from Laravel
-    const flashProps = page.props as any;
-    if (flashProps.flash?.success) {
-        toast.success(flashProps.flash.success);
-    }
+    // ####################
+    // Handle Flash Messages
+    // ####################
 
-    if (flashProps.flash?.error) {
-        toast.error(flashProps.flash.error);
-    }
+    const flashProps = page.props as any;
+    const flashTypes = ['success', 'error'] as const;
+    flashTypes.forEach(type => {
+        if (flashProps.flash?.[type]) {
+            toast[type](flashProps.flash[type]);
+        }
+    });
 });
 </script>
 
 <template>
     <div class="space-y-6">
-        <!-- Header -->
+        <!-- ======================================= -->
+        <!-- Header                                  -->
+        <!-- ======================================= -->
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="text-2xl font-bold tracking-tight">
@@ -256,6 +359,10 @@ onMounted(() => {
             </div>
             <div class="flex items-center gap-2">
                 <Button variant="outline" @click="syncEpisodes">Sync to Redis</Button>
+
+                <!-- ============================== -->
+                <!-- Add Episode Dialog             -->
+                <!-- ============================== -->
                 <Dialog v-model:open="showAddDialog">
                 <DialogTrigger asChild>
                     <Button>
@@ -271,6 +378,9 @@ onMounted(() => {
                         </DialogDescription>
                     </DialogHeader>
                     <div class="grid gap-4 py-4">
+                        <!-- ==================== -->
+                        <!-- Title Field          -->
+                        <!-- ==================== -->
                         <div class="grid gap-2">
                             <Label htmlFor="title">Title</Label>
                             <Input
@@ -288,6 +398,10 @@ onMounted(() => {
                                 {{ createForm.errors.title }}
                             </p>
                         </div>
+
+                        <!-- ==================== -->
+                        <!-- Description Field    -->
+                        <!-- ==================== -->
                         <div class="grid gap-2">
                             <Label htmlFor="description">Description</Label>
                             <Textarea
@@ -306,13 +420,17 @@ onMounted(() => {
                                 {{ createForm.errors.description }}
                             </p>
                         </div>
+
+                        <!-- ==================== -->
+                        <!-- Audio File Field     -->
+                        <!-- ==================== -->
                         <div class="grid gap-2">
                             <Label htmlFor="audio_file">Audio File</Label>
                             <Input
                                 id="audio_file"
                                 type="file"
                                 accept=".mp3,.m4a"
-                                @change="handleFileSelect"
+                                @change="makeFileSelectHandler(createForm)"
                                 :class="{
                                     'border-red-500':
                                         createForm.errors.audio_file,
@@ -325,6 +443,10 @@ onMounted(() => {
                                 {{ createForm.errors.audio_file }}
                             </p>
                         </div>
+
+                        <!-- ==================== -->
+                        <!-- Published Date Field -->
+                        <!-- ==================== -->
                         <div class="grid gap-2">
                             <Label htmlFor="published_date"
                                 >Published Date</Label
@@ -375,14 +497,22 @@ onMounted(() => {
             </div>
         </div>
 
-        <!-- Success Message -->
+        <!-- ======================================= -->
+        <!-- Flash Messages                         -->
+        <!-- ======================================= -->
+
+        <!-- ============================== -->
+        <!-- Success Message                -->
+        <!-- ============================== -->
         <div v-if="successMessage" class="rounded-md bg-green-50 p-4">
             <div class="text-sm text-green-800">
                 {{ successMessage }}
             </div>
         </div>
 
-        <!-- Error Messages -->
+        <!-- ============================== -->
+        <!-- Error Messages                 -->
+        <!-- ============================== -->
         <div
             v-if="Object.keys(errors).length > 0"
             class="rounded-md bg-red-50 p-4"
@@ -396,7 +526,9 @@ onMounted(() => {
             </div>
         </div>
 
-        <!-- Episodes Table -->
+        <!-- ======================================= -->
+        <!-- Episodes Table                         -->
+        <!-- ======================================= -->
         <div class="rounded-md border">
             <Table>
                 <TableHeader>
@@ -410,6 +542,9 @@ onMounted(() => {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
+                    <!-- ============================== -->
+                    <!-- Episode Rows                   -->
+                    <!-- ============================== -->
                     <TableRow v-for="episode in episodes" :key="episode.id">
                         <TableCell class="font-medium">
                             <div>
@@ -452,6 +587,10 @@ onMounted(() => {
                             </div>
                         </TableCell>
                     </TableRow>
+
+                    <!-- ============================== -->
+                    <!-- Empty State                    -->
+                    <!-- ============================== -->
                     <TableRow v-if="episodes.length === 0">
                         <TableCell
                             colspan="6"
@@ -465,7 +604,9 @@ onMounted(() => {
             </Table>
         </div>
 
-        <!-- Edit Episode Dialog -->
+        <!-- ======================================= -->
+        <!-- Edit Episode Dialog                    -->
+        <!-- ======================================= -->
         <Dialog v-model:open="showEditDialog">
             <DialogContent class="sm:max-w-[425px]">
                 <DialogHeader>
@@ -475,6 +616,9 @@ onMounted(() => {
                     </DialogDescription>
                 </DialogHeader>
                 <div class="grid gap-4 py-4">
+                    <!-- ==================== -->
+                    <!-- Title Field          -->
+                    <!-- ==================== -->
                     <div class="grid gap-2">
                         <Label htmlFor="edit_title">Title</Label>
                         <Input
@@ -492,6 +636,10 @@ onMounted(() => {
                             {{ updateForm.errors.title }}
                         </p>
                     </div>
+
+                    <!-- ==================== -->
+                    <!-- Description Field    -->
+                    <!-- ==================== -->
                     <div class="grid gap-2">
                         <Label htmlFor="edit_description">Description</Label>
                         <Textarea
@@ -509,6 +657,10 @@ onMounted(() => {
                             {{ updateForm.errors.description }}
                         </p>
                     </div>
+
+                    <!-- ==================== -->
+                    <!-- Audio File Field     -->
+                    <!-- ==================== -->
                     <div class="grid gap-2">
                         <Label htmlFor="edit_audio_file"
                             >Audio File (optional)</Label
@@ -517,7 +669,7 @@ onMounted(() => {
                             id="edit_audio_file"
                             type="file"
                             accept=".mp3,.m4a"
-                            @change="handleEditFileSelect"
+                            @change="makeFileSelectHandler(updateForm)"
                             :class="{
                                 'border-red-500': updateForm.errors.audio_file,
                             }"
@@ -532,6 +684,10 @@ onMounted(() => {
                             Leave empty to keep the current audio file.
                         </p>
                     </div>
+
+                    <!-- ==================== -->
+                    <!-- Published Date Field -->
+                    <!-- ==================== -->
                     <div class="grid gap-2">
                         <Label htmlFor="edit_published_date"
                             >Published Date</Label
