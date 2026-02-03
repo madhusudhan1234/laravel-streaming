@@ -32,8 +32,8 @@ tasks:
     - run: uptime
   deploy:assets:
     - run: 'cd {{release_path}} && npm ci'
-    - run: 'cd {{release_path}} && npm run build'  
-  
+    - run: 'cd {{release_path}} && npm run build'
+
   deploy:
     - deploy:prepare
     - deploy:vendors
@@ -43,7 +43,6 @@ tasks:
     - artisan:config:cache
     - artisan:route:cache
     - artisan:view:cache
-    - artisan:migrate
     - deploy:assets
     - deploy:symlink
     - deploy:unlock
