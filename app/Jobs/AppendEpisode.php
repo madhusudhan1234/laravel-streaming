@@ -7,9 +7,9 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Facades\Http;
 
 class AppendEpisode implements ShouldQueue
 {
@@ -38,8 +38,6 @@ class AppendEpisode implements ShouldQueue
         }
         $episode = $this->episode;
         $episode['id'] = $episode['id'] ?? ($maxId + 1);
-
-        
 
         Log::info('Queue: episode appended', ['episode' => $episode]);
         $token = config('episodes.token');

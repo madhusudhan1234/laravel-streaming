@@ -31,6 +31,7 @@ class DeleteEpisodeFromGithub implements ShouldQueue
 
         if (! $token || ! $owner || ! $repo) {
             Log::warning('DeleteEpisodeFromGithub skipped due to missing config');
+
             return;
         }
 
@@ -65,8 +66,10 @@ class DeleteEpisodeFromGithub implements ShouldQueue
         $res = Http::withHeaders($headers)->get($url, ['ref' => $branch]);
         if ($res->ok()) {
             $data = $res->json();
+
             return $data['sha'] ?? null;
         }
+
         return null;
     }
 }

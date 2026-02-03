@@ -40,22 +40,25 @@ class SocialiteController extends Controller
             ]);
         }
 
-        // Find or create the user
-        $user = User::firstOrCreate(
-            ['email' => $googleUser->getEmail()],
-            [
+        // Create a user instance without persisting to database
+        $user = new User([
+            'id' => 1,
+            'name' => $googleUser->getName(),
+            'email' => $googleUser->getEmail(),
+        ]);
+        $user->id = 1; // Set ID for auth purposes
+
+        // Store user data in session
+        session([
+            'google_user' => [
+                'id' => 1,
                 'name' => $googleUser->getName(),
                 'email' => $googleUser->getEmail(),
-                'password' => bcrypt(str()->random(24)), // Random password since we use OAuth
-            ]
-        );
+                'avatar' => $googleUser->getAvatar(),
+            ],
+        ]);
 
-        // Update name if it has changed
-        if ($user->name !== $googleUser->getName()) {
-            $user->update(['name' => $googleUser->getName()]);
-        }
-
-        // Log the user in
+        // Log the user in using the session guard
         Auth::login($user, remember: true);
 
         session()->regenerate();
