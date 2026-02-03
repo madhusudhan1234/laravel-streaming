@@ -426,6 +426,9 @@
   const waveform = document.getElementById('waveform');
   const progressIndicator = document.getElementById('progressIndicator');
   const errorMessage = document.getElementById('errorMessage');
+  const channel = new BroadcastChannel('audio-player-sync');
+  const playerId = `player-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+  const episodeId = {{ $episode['id'] ?? 'null' }};
   
   // State management
   let streamingUrl = null;
@@ -593,11 +596,13 @@
       await loadAudioIfNeeded();
       
       if (audio.paused) {
+        channel.postMessage({ type: 'PLAY', playerId, episodeId, timestamp: Date.now() });
         await audio.play();
         player.classList.add('playing');
       } else {
         audio.pause();
         player.classList.remove('playing');
+        channel.postMessage({ type: 'PAUSE', playerId, timestamp: Date.now() });
       }
     } catch (error) {
       let errorMessage = 'Failed to play audio. Please try again.';
@@ -757,6 +762,7 @@
     player.classList.remove('playing');
     // Reset to beginning
     audio.currentTime = 0;
+    channel.postMessage({ type: 'STOP', playerId, timestamp: Date.now() });
   });
   audio.addEventListener('error', (e) => {
     setLoadingState(false);
@@ -773,6 +779,7 @@
     if (animationFrameId) {
       cancelAnimationFrame(animationFrameId);
     }
+    channel.close();
   }
 
   // Initialize everything - generate waveform and log audio initialization
@@ -781,6 +788,16 @@
   
   // Clean up on page unload
   window.addEventListener('beforeunload', cleanup, { passive: true });
+  channel.onmessage = (event) => {
+    const message = event.data;
+    if (!message || message.playerId === playerId) return;
+    if (message.type === 'PLAY') {
+      if (!audio.paused) {
+        audio.pause();
+        player.classList.remove('playing');
+      }
+    }
+  };
 </script>
 </body>
 </html>

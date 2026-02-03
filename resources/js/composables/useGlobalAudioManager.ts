@@ -126,30 +126,27 @@ class GlobalAudioManager {
      * Setup message listener for cross-frame communication
      */
     private setupMessageListener(): void {
-        this.channel.addEventListener(
-            'message',
-            (event: MessageEvent<AudioManagerMessage>) => {
-                const message = event.data;
-
-                // Ignore messages from the same frame (prevent loops)
-                if (message.playerId && this.listeners.has(message.playerId)) {
-                    return;
-                }
-
-                switch (message.type) {
-                    case 'PLAY':
-                        // Pause all local players when another frame starts playing
-                        this.pauseOtherPlayers('');
-                        this.currentPlayerId = null; // Clear local current player
-                        break;
-
-                    case 'PAUSE':
-                    case 'STOP':
-                        // No action needed for pause/stop from other frames
-                        break;
-                }
-            },
-        );
+        this.channel.onmessage = (event: MessageEvent<AudioManagerMessage>) => {
+            const message = event.data;
+ 
+            // Ignore messages originating from this frame (prevent loops)
+            if (message.playerId && this.listeners.has(message.playerId)) {
+                return;
+            }
+ 
+            switch (message.type) {
+                case 'PLAY':
+                    // Pause all local players when another frame starts playing
+                    this.pauseOtherPlayers('');
+                    this.currentPlayerId = null; // Clear local current player
+                    break;
+ 
+                case 'PAUSE':
+                case 'STOP':
+                    // No action needed for pause/stop from other frames
+                    break;
+            }
+        };
     }
 
     /**
