@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Redis;
 
 class EpisodeRepository
 {
-
     private static function dir(): string
     {
         return public_path('episodes');
@@ -43,6 +42,7 @@ class EpisodeRepository
                 usort($episodes, function ($a, $b) {
                     return ($a['id'] ?? 0) <=> ($b['id'] ?? 0);
                 });
+
                 return $episodes;
             }
         }
@@ -50,6 +50,7 @@ class EpisodeRepository
         usort($episodes, function ($a, $b) {
             return ($a['id'] ?? 0) <=> ($b['id'] ?? 0);
         });
+
         return $episodes;
     }
 
@@ -71,6 +72,7 @@ class EpisodeRepository
                 $ep = json_decode($json, true);
                 if (is_array($ep)) {
                     Redis::set($redisKey, json_encode($ep));
+
                     return $ep;
                 }
             }
@@ -78,9 +80,11 @@ class EpisodeRepository
         foreach (self::load() as $episode) {
             if (($episode['id'] ?? null) === $id) {
                 Redis::set($redisKey, json_encode($episode));
+
                 return $episode;
             }
         }
+
         return null;
     }
 
@@ -105,17 +109,21 @@ class EpisodeRepository
                 $ep = json_decode($json, true);
                 if (is_array($ep) && basename($ep['filename'] ?? '') === $base) {
                     Redis::set('episode:'.intval($ep['id'] ?? 0), json_encode($ep));
+
                     return $ep;
                 }
             }
+
             return null;
         }
         foreach (self::load() as $episode) {
             if (basename($episode['filename'] ?? '') === $base) {
                 Redis::set('episode:'.intval($episode['id'] ?? 0), json_encode($episode));
+
                 return $episode;
             }
         }
+
         return null;
     }
 
@@ -126,11 +134,16 @@ class EpisodeRepository
             File::makeDirectory($dir, 0755, true);
         }
         foreach ($episodes as $ep) {
-            if (! is_array($ep)) continue;
+            if (! is_array($ep)) {
+                continue;
+            }
             $id = intval($ep['id'] ?? 0);
-            if ($id <= 0) continue;
+            if ($id <= 0) {
+                continue;
+            }
             File::put($dir.'/'.$id.'.json', json_encode($ep, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
+
         return true;
     }
 
@@ -151,8 +164,10 @@ class EpisodeRepository
             Redis::set('episode:'.intval($episode['id']), json_encode($episode));
             $all = self::all();
             Redis::set('episodes:all', json_encode($all));
+
             return $episode;
         }
+
         return null;
     }
 
@@ -172,8 +187,10 @@ class EpisodeRepository
             Redis::set('episode:'.intval($id), json_encode($merged));
             $all = self::all();
             Redis::set('episodes:all', json_encode($all));
+
             return $merged;
         }
+
         return null;
     }
 
@@ -186,6 +203,7 @@ class EpisodeRepository
             $all = self::all();
             Redis::set('episodes:all', json_encode($all));
         }
+
         return $deleted;
     }
 }

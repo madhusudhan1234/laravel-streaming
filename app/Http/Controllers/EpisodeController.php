@@ -2,18 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\AppendEpisode;
+use App\Jobs\DeleteEpisodeFromGithub;
+use App\Jobs\SyncEpisodesToRedis;
 use App\Models\Episode;
 use App\Repositories\EpisodeRepository;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
-use App\Jobs\AppendEpisode;
-use App\Jobs\SyncEpisodesToRedis;
-use App\Jobs\DeleteEpisodeFromGithub;
 
 class EpisodeController extends Controller
 {
@@ -55,6 +55,7 @@ class EpisodeController extends Controller
                 return [];
             }
         }
+
         return $episodes;
     }
 
@@ -118,6 +119,7 @@ class EpisodeController extends Controller
     public function sync()
     {
         SyncEpisodesToRedis::dispatch();
+
         return redirect()->route('episodes.dashboard')->with('success', 'Episodes sync queued');
     }
 
@@ -148,7 +150,6 @@ class EpisodeController extends Controller
             $useR2 = config('filesystems.default') === 'r2' ||
                      (config('filesystems.disks.r2.key') && config('filesystems.disks.r2.bucket'));
 
-
             if ($useR2) {
                 $r2Config = config('filesystems.disks.r2');
                 if (empty($r2Config['key']) || empty($r2Config['secret']) || empty($r2Config['bucket']) || empty($r2Config['endpoint'])) {
@@ -176,7 +177,6 @@ class EpisodeController extends Controller
                     }
 
                     $fileUrl = '/'.$storagePath;
-
 
                 } catch (\Exception $e) {
                     return redirect()->back()->withErrors(['error' => 'Failed to upload audio file to cloud storage: '.$e->getMessage()]);
@@ -235,7 +235,7 @@ class EpisodeController extends Controller
 
                 Bus::chain([
                     new AppendEpisode($episode),
-                    new SyncEpisodesToRedis(),
+                    new SyncEpisodesToRedis,
                 ])->dispatch();
             } else {
                 $episode = Episode::create([
@@ -282,9 +282,11 @@ class EpisodeController extends Controller
             if (! $data) {
                 return response()->json(['message' => 'Episode not found'], 404);
             }
+
             return response()->json($data);
         }
         $model = Episode::find($episode);
+
         return $model ? response()->json($model) : response()->json(['message' => 'Episode not found'], 404);
     }
 
@@ -486,7 +488,7 @@ class EpisodeController extends Controller
                 if (config('episodes.token') && config('episodes.owner') && config('episodes.name')) {
                     \Illuminate\Support\Facades\Bus::chain([
                         new DeleteEpisodeFromGithub((int) $episode),
-                        new SyncEpisodesToRedis(),
+                        new SyncEpisodesToRedis,
                     ])->dispatch();
                 }
             } else {

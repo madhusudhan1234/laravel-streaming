@@ -2,10 +2,10 @@
 
 namespace App\Providers;
 
+use App\Auth\WhitelistUserProvider;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Horizon\Horizon;
-use Illuminate\Support\Facades\Auth;
-use App\Auth\WhitelistUserProvider;
 
 class AppServiceProvider extends ServiceProvider
 {

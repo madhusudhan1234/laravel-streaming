@@ -17,6 +17,7 @@ class BlockAdminDomain
         if ($admin !== '' && $request->getHost() === $admin) {
             abort(404);
         }
+
         return $next($request);
     }
 }

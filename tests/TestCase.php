@@ -2,9 +2,9 @@
 
 namespace Tests;
 
+use App\Models\Episode;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
-use App\Models\Episode;
 
 abstract class TestCase extends BaseTestCase
 {

@@ -23,7 +23,6 @@ class EmbedController extends Controller
         ]);
     }
 
-
     /**
      * Generate embed code for an episode
      */

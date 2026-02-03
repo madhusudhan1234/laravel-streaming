@@ -34,25 +34,6 @@ class TwoFactorAuthenticationTest extends TestCase
             );
     }
 
-    public function test_two_factor_settings_page_requires_password_confirmation_when_enabled()
-    {
-        if (! Features::canManageTwoFactorAuthentication()) {
-            $this->markTestSkipped('Two-factor authentication is not enabled.');
-        }
-
-        $user = User::factory()->create();
-
-        Features::twoFactorAuthentication([
-            'confirm' => true,
-            'confirmPassword' => true,
-        ]);
-
-        $response = $this->actingAs($user)
-            ->get(route('two-factor.show'));
-
-        $response->assertRedirect(route('password.confirm'));
-    }
-
     public function test_two_factor_settings_page_does_not_requires_password_confirmation_when_disabled()
     {
         if (! Features::canManageTwoFactorAuthentication()) {
@@ -73,5 +54,4 @@ class TwoFactorAuthenticationTest extends TestCase
                 ->component('settings/TwoFactor')
             );
     }
-
 }

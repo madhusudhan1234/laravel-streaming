@@ -7,4 +7,3 @@ return [
     'env' => env('EPISODES_ENV', 'production'),
     'token' => env('GITHUB_TOKEN'),
 ];
-
