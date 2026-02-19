@@ -16,7 +16,7 @@ export const edit = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 edit.definition = {
     methods: ['get', 'head'],
-    url: '/settings/profile',
+    url: '/settings/appearance',
 } satisfies RouteDefinition<['get', 'head']>;
 
 /**
