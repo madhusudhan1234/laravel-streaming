@@ -28,7 +28,8 @@ class SocialiteController extends Controller
         try {
             $googleUser = Socialite::driver('google')->user();
         } catch (\Exception $e) {
-            return redirect()->route('login')->with('status', 'Unable to authenticate with Google. Please try again.');
+            return redirect()
+                ->route('login')->with('status', 'Unable to authenticate with Google. Please try again.');
         }
 
         // Check if the email is the allowed admin email
