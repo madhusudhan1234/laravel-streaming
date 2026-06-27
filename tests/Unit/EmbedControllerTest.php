@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Http\Controllers\EmbedController;
+use App\Services\EpisodeService;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 
@@ -12,7 +13,7 @@ final class EmbedControllerTest extends TestCase
 {
     public function test_build_embed_code_uses_url_and_escapes_title_from_array(): void
     {
-        $controller = new EmbedController;
+        $controller = new EmbedController($this->createMock(EpisodeService::class));
         $method = new ReflectionMethod(EmbedController::class, 'buildEmbedCode');
         $method->setAccessible(true);
 
@@ -29,7 +30,7 @@ final class EmbedControllerTest extends TestCase
 
     public function test_build_embed_code_uses_title_from_model_like_object(): void
     {
-        $controller = new EmbedController;
+        $controller = new EmbedController($this->createMock(EpisodeService::class));
         $method = new ReflectionMethod(EmbedController::class, 'buildEmbedCode');
         $method->setAccessible(true);
 
