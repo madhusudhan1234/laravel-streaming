@@ -19,7 +19,7 @@ RUN apk add --no-cache \
     linux-headers
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mysqli mbstring exif pcntl bcmath gd pdo_pgsql
+RUN docker-php-ext-install mbstring exif pcntl bcmath gd pdo_pgsql
 
 # Install PHP Redis extension via pecl
 RUN apk add --no-cache autoconf g++ make \

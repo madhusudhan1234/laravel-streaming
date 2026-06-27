@@ -12,7 +12,6 @@ services:
     networks:
       - lifeandmessage  
     depends_on:
-      - mysql
       - redis
 
   nginx:
@@ -29,20 +28,6 @@ services:
     depends_on:
       - app    
     
-  mysql:
-    image: mysql:8.0
-    container_name: mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-    networks:
-      - lifeandmessage  
-
   redis:
     image: redis:alpine
     container_name: redis
@@ -99,6 +84,3 @@ services:
 networks:
   lifeandmessage:
     driver: bridge
-
-volumes:
-  mysql_data:
