@@ -15,7 +15,7 @@ hosts:
   production:
     hostname: 'audio.lifeandmessage.com'
     remote_user: deployer
-    deploy_path: '/var/www/audio.lifeandmessage.com'
+    deploy_path: '/var/www/weekly.madhusudhansubedi.com.np'
     port: 22
     ssh_options:
       UserKnownHostsFile: /dev/null
