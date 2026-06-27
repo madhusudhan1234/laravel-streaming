@@ -44,6 +44,9 @@ jobs:
       - name: Configure Environment for Testing
         run: |
           echo "APP_ENV=testing" >> .env
+          echo "CACHE_STORE=array" >> .env
+          echo "SESSION_DRIVER=array" >> .env
+          echo "QUEUE_CONNECTION=sync" >> .env
 
       - name: Generate Application Key
         run: php artisan key:generate
