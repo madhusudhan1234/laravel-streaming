@@ -23,7 +23,7 @@ class AudioStreamController extends Controller
         $externalUrl = $this->resolveExternalUrl($episodeUrl);
 
         if ($externalUrl) {
-            return redirect($externalUrl, 302);
+            return $this->proxyExternalAudio($request, $externalUrl, $filename);
         }
 
         $audioPath = $this->getLocalFilePath($episodeUrl);
@@ -58,6 +58,55 @@ class AudioStreamController extends Controller
             'stream_url' => url("/api/stream/{$filename}"),
             'supports_range' => true,
         ]);
+    }
+
+    private function proxyExternalAudio(Request $request, string $externalUrl, string $filename): mixed
+    {
+        $mimeType = $this->getMimeType($filename);
+        $headers = ['Accept' => $mimeType];
+
+        $rangeHeader = $request->header('Range');
+        if ($rangeHeader) {
+            $headers['Range'] = $rangeHeader;
+        }
+
+        $client = new \GuzzleHttp\Client(['timeout' => 30, 'connect_timeout' => 10]);
+
+        try {
+            $upstream = $client->get($externalUrl, [
+                'headers' => $headers,
+                'stream' => true,
+            ]);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            abort(502, 'Failed to fetch audio from storage');
+        }
+
+        $statusCode = $upstream->getStatusCode();
+
+        $responseHeaders = [
+            'Content-Type' => $upstream->getHeaderLine('Content-Type') ?: $mimeType,
+            'Accept-Ranges' => 'bytes',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Headers' => 'Range',
+            'Cache-Control' => 'public, max-age=3600',
+        ];
+
+        if ($contentLength = $upstream->getHeaderLine('Content-Length')) {
+            $responseHeaders['Content-Length'] = $contentLength;
+        }
+
+        if ($contentRange = $upstream->getHeaderLine('Content-Range')) {
+            $responseHeaders['Content-Range'] = $contentRange;
+        }
+
+        $body = $upstream->getBody();
+
+        return new StreamedResponse(function () use ($body) {
+            while (! $body->eof()) {
+                echo $body->read(8192);
+                flush();
+            }
+        }, $statusCode, $responseHeaders);
     }
 
     private function handleRangeRequest(string $filePath, int $fileSize, string $mimeType, string $range): mixed
