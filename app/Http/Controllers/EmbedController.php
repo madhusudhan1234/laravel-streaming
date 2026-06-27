@@ -2,78 +2,48 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Episode;
-use App\Repositories\EpisodeRepository;
+use App\Services\EpisodeService;
 
 class EmbedController extends Controller
 {
-    /**
-     * Show embed player for a specific episode
-     */
-    public function show($id)
+    public function __construct(private EpisodeService $episodes) {}
+
+    public function show(int $id): mixed
     {
-        $episode = $this->getEpisode($id);
+        $episode = $this->episodes->find($id);
 
         if (! $episode) {
             abort(404, 'Episode not found');
         }
 
-        return view('embed', [
-            'episode' => $episode,
-        ]);
+        return view('embed', ['episode' => $episode]);
     }
 
-    /**
-     * Generate embed code for an episode
-     */
-    public function generateEmbedCode($id)
+    public function generateEmbedCode(int $id): mixed
     {
-        $episode = $this->getEpisode($id);
+        $episode = $this->episodes->find($id);
 
         if (! $episode) {
             return response()->json(['error' => 'Episode not found'], 404);
         }
 
         $embedUrl = url("/embed/{$id}");
-        $embedCode = $this->buildEmbedCode($embedUrl, $episode);
 
         return response()->json([
-            'embedCode' => $embedCode,
+            'embedCode' => $this->buildEmbedCode($embedUrl, $episode),
             'embedUrl' => $embedUrl,
             'episode' => $episode,
         ]);
     }
 
-    /**
-     * Get episode data from database
-     */
-    private function getEpisode($id)
-    {
-        if (! app()->environment('testing')) {
-            $e = EpisodeRepository::find((int) $id);
-            if ($e) {
-                return $e;
-            }
-        }
-        try {
-            return Episode::find($id);
-        } catch (\Exception $e) {
-            return null;
-        }
-    }
-
-    /**
-     * Build HTML embed code
-     */
-    private function buildEmbedCode($embedUrl, $episode)
+    private function buildEmbedCode(string $embedUrl, mixed $episode): string
     {
         $titleVal = is_array($episode) ? ($episode['title'] ?? '') : ($episode->title ?? '');
-        $title = htmlspecialchars($titleVal);
 
         return sprintf(
             '<iframe src="%s" width="100%%" height="120" frameborder="0" title="%s" allow="autoplay"></iframe>',
             $embedUrl,
-            $title
+            htmlspecialchars($titleVal)
         );
     }
 }
