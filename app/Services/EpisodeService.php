@@ -11,13 +11,13 @@ use App\Models\Episode;
 use App\Repositories\EpisodeRepository;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 
 class EpisodeService
 {
     public function __construct(
         private AudioUploadService $uploadService,
         private GitHubEpisodesService $github,
+        private EpisodeCacheService $cache,
     ) {}
 
     public function getAll(): array
@@ -26,12 +26,9 @@ class EpisodeService
             return Episode::orderBy('id')->get()->toArray();
         }
 
-        $raw = Redis::get('episodes:all');
-        if (is_string($raw)) {
-            $decoded = json_decode($raw, true);
-            if (is_array($decoded) && ! empty($decoded)) {
-                return $decoded;
-            }
+        $cached = $this->cache->getAll();
+        if (! empty($cached)) {
+            return $cached;
         }
 
         try {
@@ -179,11 +176,12 @@ class EpisodeService
         }
 
         // Optimistically remove from Redis so the public API reflects the deletion immediately.
-        $raw = Redis::get('episodes:all');
-        $episodes = is_string($raw) ? (json_decode($raw, true) ?? []) : [];
-        $episodes = array_values(array_filter($episodes, fn ($ep) => intval($ep['id'] ?? 0) !== $id));
-        Redis::del('episode:'.$id);
-        Redis::set('episodes:all', json_encode($episodes));
+        $episodes = array_values(array_filter(
+            $this->cache->getAll(),
+            fn ($ep) => intval($ep['id'] ?? 0) !== $id
+        ));
+        $this->cache->forget($id);
+        $this->cache->setAll($episodes);
 
         if ($this->github->isConfigured()) {
             Bus::chain([

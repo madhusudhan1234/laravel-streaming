@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Services\EpisodeCacheService;
 use App\Services\GitHubEpisodesService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -9,7 +10,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 
 class SyncEpisodesToRedis implements ShouldQueue
 {
@@ -17,7 +17,7 @@ class SyncEpisodesToRedis implements ShouldQueue
 
     public function __construct(public readonly array $episodes = []) {}
 
-    public function handle(GitHubEpisodesService $github): void
+    public function handle(GitHubEpisodesService $github, EpisodeCacheService $cache): void
     {
         $episodes = $this->episodes ?: $github->fetchAll();
 
@@ -30,27 +30,6 @@ class SyncEpisodesToRedis implements ShouldQueue
             ]);
         }
 
-        $this->writeToRedis($episodes);
-    }
-
-    private function writeToRedis(array $episodes): void
-    {
-        foreach (Redis::keys('episode:*') as $key) {
-            Redis::del($key);
-        }
-        Redis::del('episodes:all');
-
-        if (empty($episodes)) {
-            Redis::set('episodes:all', json_encode([]));
-
-            return;
-        }
-
-        usort($episodes, fn ($a, $b) => ($a['id'] ?? 0) <=> ($b['id'] ?? 0));
-        Redis::set('episodes:all', json_encode($episodes));
-
-        foreach ($episodes as $ep) {
-            Redis::set('episode:'.intval($ep['id']), json_encode($ep));
-        }
+        $cache->writeAll($episodes);
     }
 }

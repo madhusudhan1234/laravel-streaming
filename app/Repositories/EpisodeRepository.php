@@ -2,84 +2,75 @@
 
 namespace App\Repositories;
 
+use App\Services\EpisodeCacheService;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Redis;
 
 class EpisodeRepository
 {
+    private static function cache(): EpisodeCacheService
+    {
+        return app(EpisodeCacheService::class);
+    }
+
     private static function dir(): string
     {
         return public_path('episodes');
     }
 
-    private static function load(): array
+    private static function loadFromFiles(): array
     {
         $dir = self::dir();
-        if (File::isDirectory($dir)) {
-            $episodes = [];
-            foreach (File::glob($dir.'/*.json') as $file) {
-                $json = File::get($file);
-                $ep = json_decode($json, true);
-                if (is_array($ep)) {
-                    $episodes[] = $ep;
-                }
-            }
-            if (! empty($episodes)) {
-                return $episodes;
+
+        if (! File::isDirectory($dir)) {
+            return [];
+        }
+
+        $episodes = [];
+        foreach (File::glob($dir.'/*.json') as $file) {
+            $ep = json_decode(File::get($file), true);
+            if (is_array($ep)) {
+                $episodes[] = $ep;
             }
         }
 
-        return [];
+        return $episodes;
     }
 
     public static function all(): array
     {
-        $redisAll = Redis::get('episodes:all');
-        if (is_string($redisAll)) {
-            $decoded = json_decode($redisAll, true);
-            if (is_array($decoded) && ! empty($decoded)) {
-                $episodes = $decoded;
-                usort($episodes, function ($a, $b) {
-                    return ($a['id'] ?? 0) <=> ($b['id'] ?? 0);
-                });
+        $cached = self::cache()->getAll();
+        if (! empty($cached)) {
+            usort($cached, fn ($a, $b) => ($a['id'] ?? 0) <=> ($b['id'] ?? 0));
 
-                return $episodes;
-            }
+            return $cached;
         }
-        $episodes = self::load();
-        usort($episodes, function ($a, $b) {
-            return ($a['id'] ?? 0) <=> ($b['id'] ?? 0);
-        });
+
+        $episodes = self::loadFromFiles();
+        usort($episodes, fn ($a, $b) => ($a['id'] ?? 0) <=> ($b['id'] ?? 0));
 
         return $episodes;
     }
 
     public static function find(int $id): ?array
     {
-        $redisKey = 'episode:'.intval($id);
-        $redisVal = Redis::get($redisKey);
-        if (is_string($redisVal)) {
-            $decoded = json_decode($redisVal, true);
-            if (is_array($decoded)) {
-                return $decoded;
-            }
+        $cached = self::cache()->get($id);
+        if ($cached) {
+            return $cached;
         }
-        $dir = self::dir();
-        if (File::isDirectory($dir)) {
-            $file = $dir.'/'.intval($id).'.json';
-            if (File::exists($file)) {
-                $json = File::get($file);
-                $ep = json_decode($json, true);
-                if (is_array($ep)) {
-                    Redis::set($redisKey, json_encode($ep));
 
-                    return $ep;
-                }
+        $file = self::dir().'/'.intval($id).'.json';
+        if (File::exists($file)) {
+            $ep = json_decode(File::get($file), true);
+            if (is_array($ep)) {
+                self::cache()->put($ep);
+
+                return $ep;
             }
         }
-        foreach (self::load() as $episode) {
+
+        foreach (self::loadFromFiles() as $episode) {
             if (($episode['id'] ?? null) === $id) {
-                Redis::set($redisKey, json_encode($episode));
+                self::cache()->put($episode);
 
                 return $episode;
             }
@@ -91,24 +82,19 @@ class EpisodeRepository
     public static function findByFilename(string $filename): ?array
     {
         $base = basename($filename);
-        $redisAll = Redis::get('episodes:all');
-        if (is_string($redisAll)) {
-            $decoded = json_decode($redisAll, true);
-            if (is_array($decoded)) {
-                foreach ($decoded as $ep) {
-                    if (basename($ep['filename'] ?? '') === $base) {
-                        return $ep;
-                    }
-                }
+
+        foreach (self::cache()->getAll() as $ep) {
+            if (basename($ep['filename'] ?? '') === $base) {
+                return $ep;
             }
         }
+
         $dir = self::dir();
         if (File::isDirectory($dir)) {
             foreach (File::glob($dir.'/*.json') as $file) {
-                $json = File::get($file);
-                $ep = json_decode($json, true);
+                $ep = json_decode(File::get($file), true);
                 if (is_array($ep) && basename($ep['filename'] ?? '') === $base) {
-                    Redis::set('episode:'.intval($ep['id'] ?? 0), json_encode($ep));
+                    self::cache()->put($ep);
 
                     return $ep;
                 }
@@ -116,9 +102,10 @@ class EpisodeRepository
 
             return null;
         }
-        foreach (self::load() as $episode) {
+
+        foreach (self::loadFromFiles() as $episode) {
             if (basename($episode['filename'] ?? '') === $base) {
-                Redis::set('episode:'.intval($episode['id'] ?? 0), json_encode($episode));
+                self::cache()->put($episode);
 
                 return $episode;
             }
@@ -133,6 +120,7 @@ class EpisodeRepository
         if (! File::isDirectory($dir)) {
             File::makeDirectory($dir, 0755, true);
         }
+
         foreach ($episodes as $ep) {
             if (! is_array($ep)) {
                 continue;
@@ -153,17 +141,22 @@ class EpisodeRepository
         if (! File::isDirectory($dir)) {
             File::makeDirectory($dir, 0755, true);
         }
-        $episodes = self::load();
+
+        $episodes = self::loadFromFiles();
         $maxId = 0;
         foreach ($episodes as $e) {
             $maxId = max($maxId, (int) ($e['id'] ?? 0));
         }
+
         $episode['id'] = $episode['id'] ?? ($maxId + 1);
-        $ok = File::put($dir.'/'.intval($episode['id']).'.json', json_encode($episode, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $ok = File::put(
+            $dir.'/'.intval($episode['id']).'.json',
+            json_encode($episode, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+        );
+
         if ($ok !== false) {
-            Redis::set('episode:'.intval($episode['id']), json_encode($episode));
-            $all = self::all();
-            Redis::set('episodes:all', json_encode($all));
+            self::cache()->put($episode);
+            self::cache()->setAll(self::all());
 
             return $episode;
         }
@@ -177,16 +170,22 @@ class EpisodeRepository
         if (! $current) {
             return null;
         }
+
         $merged = array_merge($current, $updates);
-        $file = self::dir().'/'.intval($id).'.json';
-        if (! File::isDirectory(self::dir())) {
-            File::makeDirectory(self::dir(), 0755, true);
+        $dir = self::dir();
+
+        if (! File::isDirectory($dir)) {
+            File::makeDirectory($dir, 0755, true);
         }
-        $ok = File::put($file, json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        $ok = File::put(
+            $dir.'/'.intval($id).'.json',
+            json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+        );
+
         if ($ok !== false) {
-            Redis::set('episode:'.intval($id), json_encode($merged));
-            $all = self::all();
-            Redis::set('episodes:all', json_encode($all));
+            self::cache()->put($merged);
+            self::cache()->setAll(self::all());
 
             return $merged;
         }
@@ -198,10 +197,10 @@ class EpisodeRepository
     {
         $file = self::dir().'/'.intval($id).'.json';
         $deleted = File::exists($file) ? unlink($file) : false;
+
         if ($deleted) {
-            Redis::del('episode:'.intval($id));
-            $all = self::all();
-            Redis::set('episodes:all', json_encode($all));
+            self::cache()->forget($id);
+            self::cache()->setAll(self::all());
         }
 
         return $deleted;
