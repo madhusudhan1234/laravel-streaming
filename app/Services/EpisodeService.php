@@ -41,10 +41,8 @@ class EpisodeService
     public function find(int $id): array|Episode|null
     {
         if (! app()->environment('testing')) {
-            $episode = EpisodeRepository::find($id);
-            if ($episode) {
-                return $episode;
-            }
+            // Production has no database: episodes live in Redis / JSON files.
+            return EpisodeRepository::find($id);
         }
 
         return Episode::find($id);
