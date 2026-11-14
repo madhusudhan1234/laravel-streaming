@@ -99,7 +99,18 @@ class GitHubEpisodesService
             $body['sha'] = $sha;
         }
 
-        Http::withHeaders($this->headers())->put($this->baseUrl().$path, $body);
+        $res = Http::withHeaders($this->headers())->put($this->baseUrl().$path, $body);
+
+        if (! $res->successful()) {
+            Log::error('Failed to upsert episode file on GitHub', [
+                'id' => $id,
+                'path' => $path,
+                'status' => $res->status(),
+                'message' => $res->json('message'),
+            ]);
+
+            throw new \RuntimeException("GitHub upsert of episode {$id} failed with HTTP {$res->status()}");
+        }
     }
 
     public function delete(int $id): void
