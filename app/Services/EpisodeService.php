@@ -26,16 +26,10 @@ class EpisodeService
             return Episode::orderBy('id')->get()->toArray();
         }
 
+        // Production has no database: fall back to the JSON files, never Eloquent.
         $cached = $this->cache->getAll();
-        if (! empty($cached)) {
-            return $cached;
-        }
 
-        try {
-            return Episode::orderBy('id')->get()->toArray();
-        } catch (\Exception $e) {
-            return [];
-        }
+        return ! empty($cached) ? $cached : EpisodeRepository::all();
     }
 
     public function find(int $id): array|Episode|null
