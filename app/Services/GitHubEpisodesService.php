@@ -41,7 +41,13 @@ class GitHubEpisodesService
         $listRes = Http::withHeaders($this->headers())->get($listUrl, ['ref' => $this->branch]);
 
         if (! $listRes->ok()) {
-            return [];
+            Log::error('GitHub episodes listing failed', [
+                'status' => $listRes->status(),
+                'message' => $listRes->json('message'),
+                'url' => $listUrl,
+            ]);
+
+            throw new \RuntimeException("GitHub episodes listing failed with HTTP {$listRes->status()}");
         }
 
         $episodes = [];
@@ -56,7 +62,8 @@ class GitHubEpisodesService
             );
 
             if (! $fileRes->ok()) {
-                continue;
+                // A partial result would overwrite the cache with missing episodes.
+                throw new \RuntimeException("GitHub episode fetch failed for {$item['path']} with HTTP {$fileRes->status()}");
             }
 
             $contentRaw = $fileRes->json()['content'] ?? null;
