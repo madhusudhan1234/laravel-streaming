@@ -28,6 +28,9 @@ class SyncEpisodesToRedis implements ShouldQueue
                 'env' => config('episodes.env'),
                 'branch' => config('episodes.branch'),
             ]);
+
+            // Never wipe the existing cache because a fetch returned nothing.
+            return;
         }
 
         $cache->writeAll($episodes);
