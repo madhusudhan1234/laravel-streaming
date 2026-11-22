@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\R2Endpoint;
+
 return [
 
     /*
@@ -66,7 +68,8 @@ return [
             'secret' => env('R2_SECRET_ACCESS_KEY'),
             'region' => env('R2_DEFAULT_REGION', 'auto'),
             'bucket' => env('R2_BUCKET'),
-            'endpoint' => env('R2_ENDPOINT'),
+            // Strip a trailing /<bucket>: path-style requests add it themselves (see R2Endpoint).
+            'endpoint' => R2Endpoint::normalize(env('R2_ENDPOINT'), env('R2_BUCKET')),
             'use_path_style_endpoint' => true,
             'throw' => true,  // Enable exception throwing to get detailed errors
             'visibility' => 'public',
