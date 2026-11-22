@@ -66,7 +66,14 @@ return [
             'secret' => env('R2_SECRET_ACCESS_KEY'),
             'region' => env('R2_DEFAULT_REGION', 'auto'),
             'bucket' => env('R2_BUCKET'),
-            'endpoint' => env('R2_ENDPOINT'),
+            // Path-style requests add the bucket to the URL themselves. If R2_ENDPOINT already ends
+            // with "/<bucket>" (as copied from the Cloudflare dashboard), the bucket would appear twice
+            // and every object would be stored under a "<bucket>/" prefix, so strip it here.
+            'endpoint' => rtrim(preg_replace(
+                '#/'.preg_quote((string) env('R2_BUCKET', ''), '#').'/?$#',
+                '',
+                rtrim((string) env('R2_ENDPOINT', ''), '/')
+            ), '/') ?: null,
             'use_path_style_endpoint' => true,
             'throw' => true,  // Enable exception throwing to get detailed errors
             'visibility' => 'public',
