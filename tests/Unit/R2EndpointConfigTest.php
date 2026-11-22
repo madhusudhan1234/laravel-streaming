@@ -2,8 +2,9 @@
 
 namespace Tests\Unit;
 
+use App\Support\R2Endpoint;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class R2EndpointConfigTest extends TestCase
 {
@@ -15,19 +16,18 @@ class R2EndpointConfigTest extends TestCase
             'endpoint with bucket' => ['https://abc.r2.cloudflarestorage.com/my-bucket', 'https://abc.r2.cloudflarestorage.com'],
             'endpoint with bucket and slash' => ['https://abc.r2.cloudflarestorage.com/my-bucket/', 'https://abc.r2.cloudflarestorage.com'],
             'other path kept' => ['https://abc.r2.cloudflarestorage.com/other', 'https://abc.r2.cloudflarestorage.com/other'],
+            'not set' => [null, null],
         ];
     }
 
     #[DataProvider('endpoints')]
-    public function test_bucket_is_stripped_from_r2_endpoint(string $endpoint, string $expected): void
+    public function test_bucket_is_stripped_from_r2_endpoint(?string $endpoint, ?string $expected): void
     {
-        putenv("R2_ENDPOINT={$endpoint}");
-        putenv('R2_BUCKET=my-bucket');
-        $_ENV['R2_ENDPOINT'] = $_SERVER['R2_ENDPOINT'] = $endpoint;
-        $_ENV['R2_BUCKET'] = $_SERVER['R2_BUCKET'] = 'my-bucket';
+        $this->assertSame($expected, R2Endpoint::normalize($endpoint, 'my-bucket'));
+    }
 
-        $config = require config_path('filesystems.php');
-
-        $this->assertSame($expected, $config['disks']['r2']['endpoint']);
+    public function test_empty_bucket_only_trims_slash(): void
+    {
+        $this->assertSame('https://abc.r2.cloudflarestorage.com', R2Endpoint::normalize('https://abc.r2.cloudflarestorage.com/', ''));
     }
 }
